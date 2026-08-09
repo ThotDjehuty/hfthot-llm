@@ -1,0 +1,18 @@
+[package]
+name = "llm-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hfthot-llm — unified CLI entrypoint orchestrating corpus/tokenize/train/rag/serve"
+
+[dependencies]
+clap.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+llm-corpus = { path = "../llm-corpus" }
+llm-tokenize = { path = "../llm-tokenize" }
+llm-train = { path = "../llm-train" }
+llm-rag = { path = "../llm-rag" }
+llm-serve = { path = "../llm-serve" }
