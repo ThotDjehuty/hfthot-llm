@@ -1,4 +1,4 @@
-hfthot-llm
+thotbook-AmentI
 ==========
 
 A private, local-first LLM training-to-serving pipeline in Rust.

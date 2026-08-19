@@ -1,7 +1,7 @@
 Architecture
 ============
 
-hfthot-llm turns your private documents, research notes, session transcripts
+thotbook-AmentI turns your private documents, research notes, session transcripts
 and paper indexes into a *personal language model* — fully on your own
 hardware. It is built as six focused Rust crates wired together by a Polarway
 Delta lakehouse.

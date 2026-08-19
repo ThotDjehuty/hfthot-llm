@@ -131,7 +131,7 @@ async fn list_models<E: Inference + Send + Sync>(
         data: vec![ModelInfo {
             id: state.config.model_id.clone(),
             object: "model",
-            owned_by: "hfthot",
+            owned_by: "thotbook",
         }],
     })
 }

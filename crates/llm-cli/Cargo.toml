@@ -3,7 +3,7 @@ name = "llm-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm — unified CLI entrypoint orchestrating corpus/tokenize/train/rag/serve"
+description = "thotbook-AmentI — unified CLI entrypoint orchestrating corpus/tokenize/train/rag/serve"
 
 [dependencies]
 clap.workspace = true

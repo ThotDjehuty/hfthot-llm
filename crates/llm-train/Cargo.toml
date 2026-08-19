@@ -3,7 +3,7 @@ name = "llm-train"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm M3 — candle QLoRA SFT of Qwen3-4B on the tokenized corpus (CPU-friendly)"
+description = "thotbook-AmentI M3 — candle QLoRA SFT of Qwen3-4B on the tokenized corpus (CPU-friendly)"
 
 [dependencies]
 deltalake.workspace = true

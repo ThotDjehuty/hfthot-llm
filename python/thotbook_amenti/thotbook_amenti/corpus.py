@@ -1,4 +1,4 @@
-"""Lakehouse connector for the hfthot-llm Rust pipeline.
+"""Lakehouse connector for the thotbook-AmentI Rust pipeline.
 
 Wraps the compiled ``llm-corpus`` binary (subprocess) and reads the resulting
 Polarway/Delta tables (stored as parquet under ``data/lakehouse/datasets.*``)
@@ -23,7 +23,7 @@ KNOWN_TABLES = [
 
 
 def project_root() -> Path:
-    """Absolute path of the hfthot-llm workspace (walk up to Cargo.toml)."""
+    """Absolute path of the thotbook-AmentI workspace (walk up to Cargo.toml)."""
     here = Path(__file__).resolve()
     for parent in here.parents:
         if (parent / "Cargo.toml").is_file():
@@ -35,7 +35,7 @@ DEFAULT_LAKEHOUSE_DIR = project_root() / "data" / "lakehouse"
 
 
 class CorpusClient:
-    """Read/ingest access to the hfthot-llm lakehouse."""
+    """Read/ingest access to the thotbook-AmentI lakehouse."""
 
     def __init__(self, lakehouse_dir: str | Path | None = None) -> None:
         self.lakehouse_dir = Path(lakehouse_dir) if lakehouse_dir else DEFAULT_LAKEHOUSE_DIR
@@ -105,7 +105,7 @@ class CorpusClient:
                 return candidate
         raise RuntimeError(
             "llm-corpus binary not found (looked in target/release and target/debug). "
-            "Build it first: cd hfthot-llm && cargo build --release"
+            "Build it first: cd thotbook-AmentI && cargo build --release"
         )
 
     def ingest(

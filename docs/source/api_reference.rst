@@ -4,19 +4,19 @@ API reference
 Python connectors
 -----------------
 
-The ``hfthot_llm`` package provides build-free connectors that shell out to
+The ``thotbook_amenti`` package provides build-free connectors that shell out to
 the compiled Rust binaries and read the resulting lakehouse with polars.
 
-.. automodule:: hfthot_llm.corpus
+.. automodule:: thotbook_amenti.corpus
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: hfthot_llm.redact
+.. automodule:: thotbook_amenti.redact
    :members:
    :undoc-members:
 
-.. automodule:: hfthot_llm.tokenizer
+.. automodule:: thotbook_amenti.tokenizer
    :members:
    :undoc-members:
 

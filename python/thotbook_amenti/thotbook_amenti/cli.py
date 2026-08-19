@@ -1,4 +1,4 @@
-"""``python -m hfthot_llm`` entry point.
+"""``python -m thotbook_amenti`` entry point.
 
 Subcommands:
     tables                          list lakehouse datasets.* tables
@@ -55,10 +55,10 @@ def cmd_ingest(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="hfthot_llm",
-        description="hfthot-llm Python connectors (Rust pipeline).",
+        prog="thotbook_amenti",
+        description="thotbook-AmentI Python connectors (Rust pipeline).",
     )
-    parser.add_argument("--version", action="version", version=f"hfthot-llm {__version__}")
+    parser.add_argument("--version", action="version", version=f"thotbook-AmentI {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_tables = sub.add_parser("tables", help="list lakehouse datasets.* tables")

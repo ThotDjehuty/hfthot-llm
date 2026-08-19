@@ -1,4 +1,4 @@
-"""hfthot-llm — thin Python connectors for the Rust pipeline.
+"""thotbook-AmentI — thin Python connectors for the Rust pipeline.
 
 These connectors shell out to the compiled Rust binaries (``llm-corpus``,
 ``llm-tokenize``) via subprocess and read the resulting lakehouse/parquet

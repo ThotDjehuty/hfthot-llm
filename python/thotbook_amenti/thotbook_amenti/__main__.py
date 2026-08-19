@@ -1,4 +1,4 @@
-"""Enable ``python -m hfthot_llm``."""
+"""Enable ``python -m thotbook_amenti``."""
 
 from __future__ import annotations
 

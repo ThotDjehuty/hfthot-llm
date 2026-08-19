@@ -1,4 +1,4 @@
-//! hfthot-llm M5 — private OpenAI-compatible inference server (Qwen3-8B, candle, CPU).
+//! thotbook-AmentI M5 — private OpenAI-compatible inference server (Qwen3-8B, candle, CPU).
 
 pub mod config;
 pub mod engine;

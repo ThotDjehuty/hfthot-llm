@@ -1,6 +1,6 @@
-# hfthot-llm (Python connectors)
+# thotbook-AmentI (Python connectors)
 
-Thin, pragmatic Python connectors for the `hfthot-llm` Rust pipeline
+Thin, pragmatic Python connectors for the `thotbook-AmentI` Rust pipeline
 (`crates/llm-corpus`, `crates/llm-tokenize`). No pyo3 build step: the
 connectors shell out to the compiled Rust binaries via `subprocess` and read
 the resulting lakehouse / tokenized data with **polars** (parquet / Arrow IPC).
@@ -17,19 +17,19 @@ Requires Python >= 3.10.
 
 ## CLI
 
-From `python/hfthot_llm`:
+From `python/thotbook_amenti`:
 
 ```sh
 # List the datasets.* tables present in the lakehouse (mode RÉEL).
-python -m hfthot_llm tables
+python -m thotbook_amenti tables
 
 # Rows / columns / bytes for a table (parquet footers, no full scan).
-python -m hfthot_llm stats --table datasets.sessions
+python -m thotbook_amenti stats --table datasets.sessions
 
 # Run the compiled llm-corpus binary against the SQLite source DBs.
 # (Binary auto-detected: target/release/llm-corpus, falls back to debug.
-#  Build it first with: cd hfthot-llm && cargo build --release)
-python -m hfthot_llm ingest --historia /path/historia.db --thotbook /path/thotbook.db
+#  Build it first with: cd thotbook-AmentI && cargo build --release)
+python -m thotbook_amenti ingest --historia /path/historia.db --thotbook /path/thotbook.db
 ```
 
 All commands accept `--lakehouse <dir>` to point at a different lakehouse.
@@ -37,7 +37,7 @@ All commands accept `--lakehouse <dir>` to point at a different lakehouse.
 ## Library
 
 ```python
-from hfthot_llm import CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
+from thotbook_amenti import CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
 
 # Lakehouse reads (parquet via polars)
 client = CorpusClient()                      # defaults to data/lakehouse
@@ -62,7 +62,7 @@ contains_secrets("token=[REDACTED]")         # False
 
 | File | Purpose |
 | --- | --- |
-| `hfthot_llm/corpus.py` | `CorpusClient` — discover/read/stats lakehouse tables, `ingest` via `llm-corpus` |
-| `hfthot_llm/tokenizer.py` | `load_tokenizer`, `tokenize_doc` (HuggingFace `tokenizers`) |
-| `hfthot_llm/redact.py` | `redact_secrets`, `contains_secrets` (Python port of `redact.ts`/`redact.rs`) |
-| `hfthot_llm/cli.py` | `python -m hfthot_llm` entry point (`tables`, `stats`, `ingest`) |
+| `thotbook_amenti/corpus.py` | `CorpusClient` — discover/read/stats lakehouse tables, `ingest` via `llm-corpus` |
+| `thotbook_amenti/tokenizer.py` | `load_tokenizer`, `tokenize_doc` (HuggingFace `tokenizers`) |
+| `thotbook_amenti/redact.py` | `redact_secrets`, `contains_secrets` (Python port of `redact.ts`/`redact.rs`) |
+| `thotbook_amenti/cli.py` | `python -m thotbook_amenti` entry point (`tables`, `stats`, `ingest`) |

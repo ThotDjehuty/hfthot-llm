@@ -3,7 +3,7 @@ name = "llm-tokenize"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm M2 — tokenize the lakehouse corpus into sharded training-ready datasets (Qwen3 tokenizer)"
+description = "thotbook-AmentI M2 — tokenize the lakehouse corpus into sharded training-ready datasets (Qwen3 tokenizer)"
 
 [dependencies]
 deltalake.workspace = true

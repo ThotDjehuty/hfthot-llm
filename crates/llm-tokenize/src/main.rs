@@ -1,4 +1,4 @@
-//! hfthot-llm M2 CLI — tokenize lakehouse tables into sharded Arrow IPC files.
+//! thotbook-AmentI M2 CLI — tokenize lakehouse tables into sharded Arrow IPC files.
 //!
 //! ```sh
 //! llm-tokenize tokenize \
@@ -20,7 +20,7 @@ use llm_tokenize::{tokenize_table_with, TokenizeReport};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "llm-tokenize", about = "hfthot-llm M2: tokenize lakehouse corpus into sharded training-ready datasets")]
+#[command(name = "llm-tokenize", about = "thotbook-AmentI M2: tokenize lakehouse corpus into sharded training-ready datasets")]
 struct Cli {
     #[command(subcommand)]
     command: Command,

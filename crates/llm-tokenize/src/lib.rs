@@ -1,4 +1,4 @@
-//! hfthot-llm M2 — tokenize the lakehouse corpus into sharded training-ready
+//! thotbook-AmentI M2 — tokenize the lakehouse corpus into sharded training-ready
 //! Arrow IPC token shards using the HuggingFace `tokenizers` crate.
 
 pub mod error;
