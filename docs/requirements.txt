@@ -1,4 +1,4 @@
-# Python dependencies for building the hfthot-llm documentation (RTD).
+# Python dependencies for building the thotbook-AmentI documentation (RTD).
 sphinx>=7.0.0,<8.0.0
 furo==2023.9.10
 myst-parser==2.0.0

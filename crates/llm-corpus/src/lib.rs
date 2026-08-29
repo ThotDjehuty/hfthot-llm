@@ -1,4 +1,4 @@
-//! `llm-corpus` — hfthot-llm M1.
+//! `llm-corpus` — thotbook-AmentI M1.
 //!
 //! Ingests the opencode session corpus (`historia.db`) and the research index
 //! (`thotbook.db`) into Polarway Delta tables (`datasets.sessions`,

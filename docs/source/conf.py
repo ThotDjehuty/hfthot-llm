@@ -7,11 +7,11 @@ import sys
 sys.path.insert(0, os.path.abspath("../../../python"))
 
 # -- Project information -----------------------------------------------------
-project = "hfthot-llm"
+project = "thotbook-AmentI"
 copyright = "2026, HFThot Research Lab"
 author = "HFThot Research Lab"
-release = "0.1.0"
-version = "0.1.0"
+release = "0.2.0"
+version = "0.2.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -26,5 +26,5 @@ exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "furo"
-html_title = "hfthot-llm Documentation"
-html_short_title = "hfthot-llm"
+html_title = "thotbook-AmentI Documentation"
+html_short_title = "thotbook-AmentI"

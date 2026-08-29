@@ -3,7 +3,7 @@ name = "llm-serve"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm M5 — OpenAI-compatible private inference server serving Qwen3-8B"
+description = "thotbook-AmentI M5 — OpenAI-compatible private inference server serving Qwen3-8B"
 
 [dependencies]
 candle-core.workspace = true

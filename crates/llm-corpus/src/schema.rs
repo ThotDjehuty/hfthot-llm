@@ -10,13 +10,15 @@ pub const TABLE_SESSIONS: &str = "datasets.sessions";
 pub const TABLE_CORPUS: &str = "datasets.corpus";
 pub const TABLE_EQUATIONS: &str = "datasets.equations";
 pub const TABLE_CITATIONS: &str = "datasets.citations";
+pub const TABLE_ARXIV_TEXT: &str = "datasets.arxiv_text";
 
 /// All tables managed by `llm-corpus`.
-pub const ALL_TABLES: [&str; 4] = [
+pub const ALL_TABLES: [&str; 5] = [
     TABLE_SESSIONS,
     TABLE_CORPUS,
     TABLE_EQUATIONS,
     TABLE_CITATIONS,
+    TABLE_ARXIV_TEXT,
 ];
 
 fn s(name: &str, nullable: bool) -> StructField {
@@ -147,6 +149,40 @@ pub fn citations_delta_fields() -> Vec<StructField> {
         s("primary_category", false),
         s("published_date", false),
         s("abstract", false),
+        s("cited_ids", false),
+        s("fetch_status", false),
+        s("indexed_at", false),
+    ]
+}
+
+/// `datasets.arxiv_text` — M6 crawler output: one row per arXiv paper with
+/// metadata + full text (ar5iv) + reference-closure citation edges.
+pub fn arxiv_text_schema() -> Schema {
+    Schema::new(vec![
+        f("arxiv_id", DataType::Utf8, false),
+        f("title", DataType::Utf8, false),
+        f("authors", DataType::Utf8, false),
+        f("categories", DataType::Utf8, false),
+        f("primary_category", DataType::Utf8, false),
+        f("published_date", DataType::Utf8, false),
+        f("abstract", DataType::Utf8, false),
+        f("full_text", DataType::Utf8, false),
+        f("cited_ids", DataType::Utf8, false),
+        f("fetch_status", DataType::Utf8, false),
+        f("indexed_at", DataType::Utf8, false),
+    ])
+}
+
+pub fn arxiv_text_delta_fields() -> Vec<StructField> {
+    vec![
+        s("arxiv_id", false),
+        s("title", false),
+        s("authors", false),
+        s("categories", false),
+        s("primary_category", false),
+        s("published_date", false),
+        s("abstract", false),
+        s("full_text", false),
         s("cited_ids", false),
         s("fetch_status", false),
         s("indexed_at", false),

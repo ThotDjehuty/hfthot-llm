@@ -1,4 +1,4 @@
-//! hfthot-llm M1 CLI — corpus ingestion.
+//! thotbook-AmentI M1 CLI — corpus ingestion.
 //!
 //! ```sh
 //! llm-corpus ingest \
@@ -19,7 +19,7 @@ use polarway_lakehouse::{DeltaStore, LakehouseConfig};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "llm-corpus", about = "hfthot-llm M1: ingest SQLite sources into Polarway Delta")]
+#[command(name = "llm-corpus", about = "thotbook-AmentI M1: ingest SQLite sources into Polarway Delta")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
