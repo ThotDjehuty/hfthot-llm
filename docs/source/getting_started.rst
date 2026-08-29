@@ -63,9 +63,32 @@ Configuration is env-driven (``LLM_SERVE_*``) with CLI overrides:
 * ``LLM_SERVE_TEMPERATURE`` (default ``0.7``)
 * ``LLM_SERVE_TOP_P`` (default ``0.9``)
 
+Chat with the local model
+-------------------------
+
+The Python connectors ship a ``ChatClient`` that speaks the OpenAI-compatible
+surface — no API key, no billing, everything stays on your machine:
+
+.. code-block:: python
+
+   from thotbook_amenti import ChatClient
+
+   with ChatClient() as assistant:      # http://127.0.0.1:8100/v1
+       if assistant.is_online():
+           reply = assistant.ask("Give one line of Kähler geometry intuition.")
+           print(reply.text)
+
+or from the shell:
+
+.. code-block:: sh
+
+   python -m thotbook_amenti chat "Explain a fibration in one line." --max-tokens 64
+   python -m thotbook_amenti health
+
 Testing
 -------
 
 .. code-block:: sh
 
    cargo test --workspace   # 39 tests across llm-corpus / llm-tokenize / llm-serve
+   pytest python/thotbook_amenti/tests   # ChatClient mock + live integration (auto-skipped when offline)

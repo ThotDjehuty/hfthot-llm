@@ -20,6 +20,10 @@ the compiled Rust binaries and read the resulting lakehouse with polars.
    :members:
    :undoc-members:
 
+.. automodule:: thotbook_amenti.chat
+   :members:
+   :undoc-members:
+
 HTTP surface (``llm-serve``)
 ----------------------------
 
@@ -38,7 +42,10 @@ HTTP surface (``llm-serve``)
 Delta tables (``datasets.*``)
 -----------------------------
 
+See :doc:`schemas` for the full column-by-column contract of every table.
+
 * ``datasets.sessions`` — session transcripts (redacted)
 * ``datasets.corpus`` — papers, notebooks and arXiv entries
 * ``datasets.equations`` — LaTeX equations indexed per source
 * ``datasets.citations`` — citation edges (seed set from the arXiv index)
+* ``datasets.arxiv_text`` — M6 crawler output (metadata + full text + edges)

@@ -169,10 +169,17 @@ huggingface-cli download Qwen/Qwen3-8B-Instruct --local-dir data/models/qwen3-8b
 ## Python connectors
 
 Thin, build-free Python connectors that shell out to the compiled Rust
-binaries and read results with **polars**:
+binaries and read results with **polars** — plus a `ChatClient` for the
+local server:
 
 ```python
-from thotbook_amenti import CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
+from thotbook_amenti import ChatClient, CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
+
+# Local open-source chat — no API key, no billing, free by design.
+with ChatClient() as assistant:            # http://127.0.0.1:8100/v1, Qwen/Qwen3-8B
+    if assistant.is_online():
+        reply = assistant.ask("Give one line of Kähler geometry intuition.")
+        print(reply.text)
 
 client = CorpusClient()              # defaults to data/lakehouse
 client.tables()                      # ['datasets.citations', 'datasets.corpus', ...]
@@ -185,12 +192,24 @@ contains_secrets("token=[REDACTED]") # False
 ```sh
 pip install -e python/thotbook_amenti
 python -m thotbook_amenti tables
+python -m thotbook_amenti health     # server status
+python -m thotbook_amenti chat "What is a fibration?"   # local inference
 ```
+
+## A free Copilot, built by us
+
+thotbook-AmentI is the model side of the HFThot Research Lab toolset: the
+same corpus pipeline that ingests our sessions, notebooks and paper indexes
+can fine-tune (`llm-train`) and serve a **local, open-source, CPU-only**
+assistant — no subscription, no data leaving the machine. It is open-source
+(Apache 2.0 weights, MIT/Apache code), free by principle (public research,
+no vendor lock-in) and free by design (local-first, private).
 
 ## Testing
 
 ```sh
 cargo test --workspace   # 39 tests: llm-corpus (9), llm-tokenize (10), llm-serve (20)
+pytest python/thotbook_amenti/tests   # ChatClient mock + live integration (live auto-skips when server offline)
 ```
 
 The redaction suite keeps Rust, Python and the JS reference in parity, and

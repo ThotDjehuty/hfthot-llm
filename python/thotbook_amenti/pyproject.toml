@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thotbook-AmentI"
-version = "0.1.0"
-description = "Thin Python connectors for the thotbook-AmentI Rust pipeline (lakehouse + tokenization)"
+version = "0.2.0"
+description = "Thin Python connectors for the thotbook-AmentI Rust pipeline (lakehouse, tokenization, local chat)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT OR Apache-2.0" }
@@ -36,3 +36,8 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["thotbook_amenti*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that require a live llm-serve instance",
+]
