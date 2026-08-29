@@ -3,7 +3,7 @@ name = "llm-corpus"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm M1 — ingest historia.db + thotbook.db into Polarway Delta datasets (sessions/corpus/equations/citations) with secret redaction"
+description = "thotbook-AmentI M1 — ingest historia.db + thotbook.db into Polarway Delta datasets (sessions/corpus/equations/citations) with secret redaction"
 
 [dependencies]
 polarway-lakehouse.workspace = true
@@ -17,3 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+reqwest.workspace = true
+quick-xml.workspace = true
+scraper.workspace = true
+walkdir.workspace = true

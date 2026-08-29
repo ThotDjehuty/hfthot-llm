@@ -1,4 +1,4 @@
-//! hfthot-llm M5 CLI — private OpenAI-compatible inference server for Qwen3-8B.
+//! thotbook-AmentI M5 CLI — private OpenAI-compatible inference server for Qwen3-8B.
 
 use std::path::PathBuf;
 
@@ -12,7 +12,7 @@ extern crate accelerate_src;
 #[derive(Debug, Parser)]
 #[command(
     name = "llm-serve",
-    about = "hfthot-llm M5: private OpenAI-compatible inference server (Qwen3-8B, candle, CPU)"
+    about = "thotbook-AmentI M5: private OpenAI-compatible inference server (Qwen3-8B, candle, CPU)"
 )]
 struct Cli {
     /// Hugging Face model id (used for the download hint and /v1/models).

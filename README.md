@@ -1,4 +1,9 @@
-# hfthot-llm
+> **EDUCATIONAL PURPOSE ONLY** — This software is provided strictly for
+> research, learning, and academic exploration. It is not intended for
+> production use, commercial deployment, or any application where failure
+> could cause harm. Use at your own risk.
+
+# thotbook-AmentI
 
 > **A private, local-first LLM training-to-serving pipeline in Rust.**
 > Ingest your own knowledge corpus → tokenize → fine-tune → retrieve → serve
@@ -9,7 +14,7 @@
 
 ## Overview
 
-hfthot-llm turns your private documents, research notes, session transcripts
+thotbook-AmentI turns your private documents, research notes, session transcripts
 and paper indexes into a *personal language model* — fully on your own
 hardware. It is built as six focused Rust crates wired together by a Polarway
 Delta lakehouse:
@@ -55,7 +60,7 @@ Every stage reads from / writes to an **Apache Arrow → Delta Lake** lakehouse
 ## Repository layout
 
 ```text
-hfthot-llm/
+thotbook-AmentI/
 ├── Cargo.toml                  # workspace root (6 members)
 ├── crates/
 │   ├── llm-corpus/             # M1: SQLite → redacted Arrow → Delta
@@ -64,7 +69,7 @@ hfthot-llm/
 │   ├── llm-rag/                # M4: embeddings + HNSW (placeholder → in dev)
 │   ├── llm-serve/              # M5: axum OpenAI-compatible server
 │   └── llm-cli/                # unified CLI entrypoint (placeholder)
-├── python/hfthot_llm/          # thin Python connectors (polars/pyarrow)
+├── python/thotbook_amenti/          # thin Python connectors (polars/pyarrow)
 ├── data/                       # lakehouse + tokenized shards (gitignored)
 └── docs/                       # Sphinx docs (ReadTheDocs)
 ```
@@ -164,10 +169,17 @@ huggingface-cli download Qwen/Qwen3-8B-Instruct --local-dir data/models/qwen3-8b
 ## Python connectors
 
 Thin, build-free Python connectors that shell out to the compiled Rust
-binaries and read results with **polars**:
+binaries and read results with **polars** — plus a `ChatClient` for the
+local server:
 
 ```python
-from hfthot_llm import CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
+from thotbook_amenti import ChatClient, CorpusClient, load_tokenizer, tokenize_doc, redact_secrets
+
+# Local open-source chat — no API key, no billing, free by design.
+with ChatClient() as assistant:            # http://127.0.0.1:8100/v1, Qwen/Qwen3-8B
+    if assistant.is_online():
+        reply = assistant.ask("Give one line of Kähler geometry intuition.")
+        print(reply.text)
 
 client = CorpusClient()              # defaults to data/lakehouse
 client.tables()                      # ['datasets.citations', 'datasets.corpus', ...]
@@ -178,14 +190,26 @@ contains_secrets("token=[REDACTED]") # False
 ```
 
 ```sh
-pip install -e python/hfthot_llm
-python -m hfthot_llm tables
+pip install -e python/thotbook_amenti
+python -m thotbook_amenti tables
+python -m thotbook_amenti health     # server status
+python -m thotbook_amenti chat "What is a fibration?"   # local inference
 ```
+
+## A free Copilot, built by us
+
+thotbook-AmentI is the model side of the HFThot Research Lab toolset: the
+same corpus pipeline that ingests our sessions, notebooks and paper indexes
+can fine-tune (`llm-train`) and serve a **local, open-source, CPU-only**
+assistant — no subscription, no data leaving the machine. It is open-source
+(Apache 2.0 weights, MIT/Apache code), free by principle (public research,
+no vendor lock-in) and free by design (local-first, private).
 
 ## Testing
 
 ```sh
 cargo test --workspace   # 39 tests: llm-corpus (9), llm-tokenize (10), llm-serve (20)
+pytest python/thotbook_amenti/tests   # ChatClient mock + live integration (live auto-skips when server offline)
 ```
 
 The redaction suite keeps Rust, Python and the JS reference in parity, and
@@ -194,7 +218,7 @@ The redaction suite keeps Rust, Python and the JS reference in parity, and
 ## Documentation
 
 Full documentation is hosted on **ReadTheDocs** (same account that hosts
-`optimiz-rs`): **https://hfthot-llm.readthedocs.io/** — see the `docs/`
+`optimiz-rs`): **https://thotbook-AmentI.readthedocs.io/** — see the `docs/`
 folder for the Sphinx sources.
 
 ## Roadmap

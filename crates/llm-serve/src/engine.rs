@@ -85,6 +85,11 @@ fn sampling(temperature: f64, top_p: f64) -> Sampling {
 }
 
 fn sample(logits: &Tensor, processor: &mut LogitsProcessor) -> Result<u32, ServeError> {
+    let logits = if logits.rank() == 3 {
+        logits.squeeze(1)?
+    } else {
+        logits.clone()
+    };
     let logits = logits.squeeze(0)?;
     processor.sample(&logits).map_err(Into::into)
 }
@@ -217,10 +222,16 @@ impl Engine {
             dir = %config.model_dir.display(),
             shards = shards.len(),
             layers = model_config.num_hidden_layers,
-            "loading qwen3 weights (bf16, cpu)"
+            "loading qwen3 weights (f16, cpu)"
         );
         let tensors = load_shards(&shards, &device)?;
-        let vb = VarBuilder::from_tensors(tensors, DType::BF16, &device);
+        let dtype = DType::F16;
+        let mut tensors_f16: HashMap<String, Tensor> = HashMap::new();
+        for (k, t) in tensors {
+            let t = t.to_dtype(dtype).map_err(ServeError::Candle)?;
+            tensors_f16.insert(k, t);
+        }
+        let vb = VarBuilder::from_tensors(tensors_f16, dtype, &device);
         let model = ModelForCausalLM::new(&model_config, vb)?;
 
         let tokenizer = Tokenizer::from_file(&config.tokenizer_path).map_err(|source| {
@@ -260,6 +271,7 @@ fn load_shards(shards: &[PathBuf], device: &Device) -> Result<HashMap<String, Te
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::Inference;
 
     fn logits() -> Tensor {
         Tensor::new(&[0.1f32, 0.2, 0.9, 3.0, 0.4], &Device::Cpu)
@@ -370,3 +382,4 @@ mod tests {
         std::fs::remove_dir_all(tmp).unwrap();
     }
 }
+

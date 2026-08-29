@@ -3,7 +3,7 @@ name = "llm-rag"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hfthot-llm M4 — embeddings + HNSW retrieval over the lakehouse corpus"
+description = "thotbook-AmentI M4 — embeddings + HNSW retrieval over the lakehouse corpus"
 
 [dependencies]
 deltalake.workspace = true
