@@ -416,3 +416,43 @@ Environment configuration (``LLM_SERVE_*``)
    * - ``LLM_SERVE_TOP_P``
      - ``0.9``
      - Default nucleus sampling
+
+Mathematical Models
+-------------------
+
+**Token Probability Distribution:**
+
+For a vocabulary :math:`\mathcal{V}` of size :math:`|\mathcal{V}|`, the
+probability of token :math:`x_t` given context :math:`x_{<t}`:
+
+.. math::
+
+   p(x_t | x_{<t}) = \text{softmax}(W_h h_t + W_x x_t + b)
+
+**Redaction Pattern Matching:**
+
+The redaction operator :math:`R` applies pattern set :math:`\mathcal{P}`:
+
+.. math::
+
+   R(d) = \bigotimes_{p \in \mathcal{P}} \text{replace}(d, p, \text{[REDACTED]})
+
+where :math:`\bigotimes` denotes sequential application.
+
+**Lakehouse Versioning:**
+
+Time-travel query at version :math:`v`:
+
+.. math::
+
+   \text{query}(v) = \text{scan}(\text{table}, \text{snapshot}(v))
+
+**Temperature Scaling:**
+
+The temperature :math:`T` controls sampling diversity:
+
+.. math::
+
+   p_T(x_i) = \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}
+
+As :math:`T \to 0$, sampling becomes greedy; as :math:`T \to \infty$, uniform.
