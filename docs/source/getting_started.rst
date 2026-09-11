@@ -92,3 +92,46 @@ Testing
 
    cargo test --workspace   # 39 tests across llm-corpus / llm-tokenize / llm-serve
    pytest python/thotbook_amenti/tests   # ChatClient mock + live integration (auto-skipped when offline)
+
+Mathematical Foundations
+------------------------
+
+The thotbook-AmentI pipeline is grounded in established mathematical principles:
+
+**Redaction as Information Projection:**
+
+The redaction step projects sensitive information onto a safe subspace. Let
+:math:`\mathcal{S}` be the set of secrets and :math:`\mathcal{D}` the document space.
+The redaction operator :math:`R: \mathcal{D} \to \mathcal{D}` satisfies:
+
+.. math::
+
+   R(d) = d \setminus \mathcal{S}, \qquad R(R(d)) = R(d) \text{ (idempotence)}
+
+**Tokenization as Discrete Embedding:**
+
+The tokenizer maps continuous text to discrete tokens:
+
+.. math::
+
+   \text{tok}: \mathcal{V}^* \to \{0, 1, \ldots, |V|-1\}^n
+
+where :math:`\mathcal{V}` is the vocabulary and :math:`n` is the sequence length.
+
+**Lakehouse as Versioned State:**
+
+The Delta lakehouse provides ACID transactions with time-travel:
+
+.. math::
+
+   \mathcal{L}_t = \{\text{tables at version } t\}, \qquad \mathcal{L}_t \to \mathcal{L}_{t+1} \text{ via append operations}
+
+**Inference as Conditional Generation:**
+
+The model server implements:
+
+.. math::
+
+   p(x_{t+1} | x_{\leq t}) = \text{softmax}(W_h h_t + W_x x_t)
+
+where :math:`h_t` is the hidden state from the transformer backbone.

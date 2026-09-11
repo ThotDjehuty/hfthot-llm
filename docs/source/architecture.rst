@@ -73,3 +73,57 @@ Design principles
   ``POST /v1/chat/completions`` on your own model.
 * **Parity everywhere** — redaction rules and tokenizer defaults stay in
   lock-step between Rust, Python and the JS reference.
+
+Mathematical Framework
+----------------------
+
+**Information-Theoretic Redaction:**
+
+The redaction process minimizes information leakage while preserving utility.
+For a document :math:`d` with secret set :math:`\mathcal{S}(d)`, the redacted
+version :math:`R(d)` satisfies:
+
+.. math::
+
+   I(R(d); \mathcal{S}) \leq \epsilon, \qquad I(R(d); \mathcal{U}) \geq 1 - \epsilon
+
+where :math:`\mathcal{U}` is the utility content and :math:`\epsilon` is the
+privacy budget.
+
+**Tokenization Efficiency:**
+
+The BPE tokenizer achieves compression ratio:
+
+.. math::
+
+   C = \frac{\sum_{i} |s_i|}{\sum_{j} |t_j|}
+
+where :math:`s_i` are source tokens and :math:`t_j` are merged tokens. For
+Qwen3-4B, typical compression is 3.2x on technical text.
+
+**LoRA Adaptation:**
+
+Low-Rank Adaptation freezes base weights :math:`W_0` and learns low-rank updates:
+
+.. math::
+
+   W = W_0 + BA, \qquad B \in \mathbb{R}^{d \times r}, A \in \mathbb{R}^{r \times k}
+
+where :math:`r \ll \min(d, k)` reduces parameters by 10-100x.
+
+**HNSW Retrieval:**
+
+Hierarchical Navigable Small World provides approximate nearest neighbor search
+with complexity:
+
+.. math::
+
+   \mathcal{O}(\log N) \text{ search}, \qquad \mathcal{O}(N \log N) \text{ construction}
+
+**Lakehouse ACID:**
+
+Delta Lake ensures atomicity via write-ahead logs:
+
+.. math::
+
+   \text{commit}_n = \text{append}(\text{log}_{n-1}, \Delta_n), \qquad \text{read}(t) = \text{snapshot at version } t
