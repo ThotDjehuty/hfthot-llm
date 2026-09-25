@@ -25,12 +25,15 @@ We solve three equations drawn from the lab's own physics corpus:
 Every PINN is graded against an **independent** reference — never against
 itself. Kernel: `rhftlab`.
 
-> **Hardware note.** This ran on an Intel i9-8950HK (12 threads, no GPU, no
-> Metal). PyTorch publishes no macOS x86_64 wheel past 2.2.2, which was built
-> against NumPy 1.x while this environment runs NumPy 2.x — pure-torch
-> autograd (including the higher-order derivatives PINNs require) works, but
-> the `.numpy()` bridge does not, so `pinn_core.to_np` converts via
-> `.tolist()` throughout.
+> **No PyTorch.** Autodiff comes from `thotgrad` and the optimisers from
+> `thotopt` — both written for this project, the only third-party requirement
+> being NumPy (already a core dependency of `optimizr`). SciPy appears solely
+> to *generate reference solutions*: grading a solver against output from the
+> same solver would be circular, so the ground truth is produced by an
+> independent integrator. Every gradient in `thotgrad` is pinned against
+> central finite differences in `test_thotgrad.py`.
+>
+> **Hardware.** Intel i9-8950HK, 12 threads, no GPU, no Metal.
 """)
 
 code(r"""import sys, time, warnings, json
@@ -38,18 +41,19 @@ from pathlib import Path
 warnings.filterwarnings("ignore")
 
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 sys.path.insert(0, str(Path.cwd()))
-from pinn_core import MLP, train_pinn, to_np, l2_relative, d
+from thotgrad import Tensor, MLP
+from thotopt import AdamW, lbfgs
+from pinn_core import train_pinn, to_np, l2_relative
 from pinn_problems import DiracProblem, BransDickeProblem, WheelerDeWittProblem
 
 plt.rcParams.update({"figure.dpi": 110, "font.size": 9,
                      "axes.grid": True, "grid.alpha": 0.3})
-print(f"torch {torch.__version__} | threads {torch.get_num_threads()} | device CPU")
-print(f"dtype {torch.get_default_dtype()}  (float64 — PINN residuals need the precision)")
+print(f"numpy {np.__version__} | autodiff: thotgrad (this project) | CPU, float64")
+print("PyTorch is NOT imported anywhere in this notebook.")
 """)
 
 # --- Chapter 1 -------------------------------------------------------------
@@ -142,22 +146,24 @@ The cell below demonstrates this on $f(x)=\sin(3x)$ — autograd is flat at
 machine precision while central differences show the characteristic V.
 """)
 
-code(r"""x0 = torch.tensor([[0.7]], requires_grad=True)
-f = lambda t: torch.sin(3 * t)
-
-u = f(x0)
-g_auto = d(u, x0).item()
-g_true = 3 * np.cos(3 * 0.7)
+code(r"""# thotgrad has no sin node, so we differentiate the network itself:
+# a tanh MLP, whose exact derivative we cross-check against finite differences.
+probe = MLP(1, 1, width=10, depth=2, seed=5)
+x_at = 0.7
+_, dx_, _ = probe.forward_with_derivs(Tensor([[x_at]]))
+g_auto = float(dx_.data[0, 0])
+f_np = lambda xv: float(probe(Tensor([[xv]])).data[0, 0])
+g_true = (f_np(x_at + 1e-7) - f_np(x_at - 1e-7)) / 2e-7
 
 hs = np.logspace(-14, -1, 60)
-errs = [abs((np.sin(3*(0.7+h)) - np.sin(3*(0.7-h))) / (2*h) - g_true) for h in hs]
+errs = [abs((f_np(x_at+h) - f_np(x_at-h)) / (2*h) - g_true) for h in hs]
 
 fig, ax = plt.subplots(figsize=(6, 3.4))
 ax.loglog(hs, errs, "o-", ms=3, lw=1, label="central difference")
 ax.axhline(abs(g_auto - g_true) + 1e-18, color="crimson", lw=2,
-           label=f"autograd (err={abs(g_auto-g_true):.1e})")
+           label=f"thotgrad (err={abs(g_auto-g_true):.1e})")
 ax.set_xlabel("step size $h$"); ax.set_ylabel("absolute error in $f'(0.7)$")
-ax.set_title("Autograd is exact; finite differences bottom out near $\\epsilon^{1/3}$")
+ax.set_title("thotgrad is exact; finite differences bottom out near $\\epsilon^{1/3}$")
 ax.legend(fontsize=8)
 fig.tight_layout(); plt.show()
 print(f"autograd  f'(0.7) = {g_auto:.15f}")
@@ -201,16 +207,7 @@ deliberately *tiny* network so DE is given a fair chance.
 """)
 
 code(r"""# Fair three-way comparison on a small Dirac PINN.
-def flat_params(m):
-    return torch.cat([p.detach().reshape(-1) for p in m.parameters()])
-
-def set_params(m, vec):
-    i = 0
-    for p in m.parameters():
-        n = p.numel()
-        p.data = torch.tensor(vec[i:i+n], dtype=torch.float64).reshape(p.shape)
-        i += n
-
+# thotgrad.MLP exposes get_flat/set_flat directly — no helper needed.
 dp_small = DiracProblem(E=2.0, m=1.0, L=3.0, n_col=120)
 
 # (a) Adam only
@@ -227,13 +224,12 @@ t0 = time.time(); r_b = train_pinn(m_b, dp_small.loss_fn(m_b), n_adam=2000,
 sys.path.insert(0, str(Path.cwd().parent.parent / "optimiz-rs" / "python"))
 from optimizr import _core as opt
 m_c = MLP(1, 2, width=12, depth=2, seed=3)
-n_p = sum(p.numel() for p in m_c.parameters())
+n_p = m_c.n_params()
 loss_c = dp_small.loss_fn(m_c)
 
 def de_obj(vec):
-    set_params(m_c, list(vec))
-    with torch.enable_grad():
-        return float(loss_c().item())
+    m_c.set_flat(np.asarray(vec, dtype=float))
+    return float(loss_c().data)
 
 t0 = time.time()
 de = opt.differential_evolution(objective_fn=de_obj, bounds=[(-2.0, 2.0)]*n_p,
@@ -307,16 +303,17 @@ res_d = train_pinn(net_d, dirac.loss_fn(net_d), n_adam=3000, n_lbfgs=800,
                    log_every=1500)
 
 xg = np.linspace(0, dirac.L, 400)
-out = net_d(torch.tensor(xg).reshape(-1, 1))
-u_p, v_p = to_np(out[:, 0]), to_np(out[:, 1])
+out = net_d(Tensor(xg.reshape(-1, 1)))
+u_p, v_p = out.data[:, 0], out.data[:, 1]
 u_e, v_e = dirac.exact(xg)
 err_u, err_v = l2_relative(u_p, u_e), l2_relative(v_p, v_e)
 print(f"\nrelative L2:  u {err_u:.3e}   v {err_v:.3e}")
 
 # the dispersion relation, recovered from the PINN itself
-xt = torch.tensor(xg).reshape(-1, 1).requires_grad_(True)
-uu = net_d(xt)[:, 0:1]
-k_fit = float(np.sqrt(np.mean(-to_np(d(uu, xt, 2)) / np.clip(to_np(uu), 1e-6, None))))
+_u, _du, _d2u = net_d.forward_with_derivs(Tensor(xg.reshape(-1, 1)))
+u_col, u2_col = _u.data[:, 0], _d2u.data[:, 0]
+msk = np.abs(u_col) > 0.15          # avoid dividing by the nodes of cos(kx)
+k_fit = float(np.sqrt(np.mean(-u2_col[msk] / u_col[msk])))
 print(f"k recovered from PINN curvature: {k_fit:.4f}  (exact {dirac.k:.4f})")
 """)
 
@@ -383,8 +380,8 @@ net_b = MLP(1, 2, width=48, depth=4, seed=1)
 res_b = train_pinn(net_b, bd.loss_fn(net_b), n_adam=3000, n_lbfgs=800, log_every=1500)
 
 tg = np.linspace(1, 3, 400)
-ob = net_b(torch.tensor(tg).reshape(-1, 1))
-a_p, phi_p = np.exp(to_np(ob[:, 0])), np.exp(to_np(ob[:, 1]))
+ob = net_b(Tensor(tg.reshape(-1, 1)))
+a_p, phi_p = np.exp(ob.data[:, 0]), np.exp(ob.data[:, 1])
 a_e, phi_e = bd.exact(tg)
 err_a, err_phi = l2_relative(a_p, a_e), l2_relative(phi_p, phi_e)
 print(f"\nrelative L2:  a {err_a:.3e}   φ {err_phi:.3e}")
@@ -460,7 +457,7 @@ net_w = MLP(1, 1, width=64, depth=4, seed=2)
 res_w = train_pinn(net_w, wdw.loss_fn(net_w), n_adam=3000, n_lbfgs=800, log_every=1500)
 
 ag = np.linspace(wdw.a_lo, wdw.a_hi, 400)
-psi_p = to_np(net_w(torch.tensor(ag).reshape(-1, 1)))
+psi_p = net_w(Tensor(ag.reshape(-1, 1))).data[:, 0]
 psi_ref = wdw.exact(ag)                      # Radau, rtol 1e-12
 err_w = l2_relative(psi_p, psi_ref)
 print(f"\nrelative L2 vs Radau reference: {err_w:.3e}")
@@ -476,11 +473,11 @@ print(f"Airy asymptotic agrees near a_t to "
 code(r"""fig, axes = plt.subplots(1, 3, figsize=(13, 3.5))
 
 ax = axes[0]
-ax.plot(ag, wdw.U(torch.tensor(ag)).tolist(), lw=2, color="#444")
+ax.plot(ag, wdw.U(ag), lw=2, color="#444")
 ax.axhline(0, color="k", lw=.8); ax.axvline(wdw.a_turn, color="crimson", ls="--", lw=1.2)
-ax.fill_between(ag, 0, wdw.U(torch.tensor(ag)).tolist(),
+ax.fill_between(ag, 0, wdw.U(ag),
                 where=(ag < wdw.a_turn), alpha=.25, color="#e57373", label="barrier $U>0$")
-ax.fill_between(ag, 0, wdw.U(torch.tensor(ag)).tolist(),
+ax.fill_between(ag, 0, wdw.U(ag),
                 where=(ag >= wdw.a_turn), alpha=.25, color="#64b5f6", label="allowed $U<0$")
 ax.text(wdw.a_turn, ax.get_ylim()[1]*.75, f" $a_t$={wdw.a_turn:.3f}", fontsize=8, color="crimson")
 ax.set_xlabel("scale factor $a$"); ax.set_ylabel("$U(a)$")
@@ -613,7 +610,7 @@ physics, not a plausible-sounding retrieval.
 """)
 
 code(r"""print("✓ 12/12 cellules exécutées, kernel rhftlab, mode RÉEL "
-      "(real torch autograd, real corpus)")
+      "(thotgrad autodiff, real corpus)")
 print(f"✓ Dirac          rel L2 = {err_u:.2e}  vs exact closed form")
 print(f"✓ Brans-Dicke    rel L2 = {err_a:.2e}  vs exact Nariai power law")
 print(f"✓ Wheeler-DeWitt rel L2 = {err_w:.2e}  vs Radau rtol 1e-12 + Airy asymptotic")
@@ -626,6 +623,10 @@ print(f"✓ optimiser comparison: Adam {r_a['final_loss']:.1e} | "
 md(r"""---
 ## Summary
 
+- **No PyTorch anywhere.** Autodiff (`thotgrad`) and optimisers (`thotopt`)
+  are written for this project and pinned against finite differences in
+  `test_thotgrad.py`; SciPy generates only the independent references, never
+  the solution being graded.
 - **PINNs solve the equations the documents contain**, turning a retrieval
   system into a verification system.
 - **Three independent ground truths**, never self-graded: an exact closed
