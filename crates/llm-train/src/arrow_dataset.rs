@@ -100,11 +100,10 @@ impl ArrowDataset {
     /// Read examples from current shard into buffer.
     fn fill_buffer(&mut self) -> Result<bool, TrainError> {
         // Open first shard if needed
-        if self.current_reader.is_none() {
-            if !self.open_next_shard()? {
+        if self.current_reader.is_none()
+            && !self.open_next_shard()? {
                 return Ok(false);
             }
-        }
 
         loop {
             let reader = match &mut self.current_reader {
@@ -153,7 +152,7 @@ impl ArrowDataset {
                 }
                 let values = list_array.value(i);
                 if let Some(u32_array) = values.as_any().downcast_ref::<UInt32Array>() {
-                    let tokens: Vec<u32> = u32_array.iter().filter_map(|x| x).collect();
+                    let tokens: Vec<u32> = u32_array.iter().flatten().collect();
                     if !tokens.is_empty() {
                         // For causal LM, labels = input_ids shifted by 1
                         let labels = tokens.clone();
@@ -166,7 +165,7 @@ impl ArrowDataset {
             }
         } else if let Some(u32_array) = array.as_any().downcast_ref::<UInt32Array>() {
             // Single flat array - treat as one sequence
-            let tokens: Vec<u32> = u32_array.iter().filter_map(|x| x).collect();
+            let tokens: Vec<u32> = u32_array.iter().flatten().collect();
             if !tokens.is_empty() {
                 let labels = tokens.clone();
                 self.buffer.push(TrainingExample {

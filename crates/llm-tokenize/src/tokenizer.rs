@@ -66,7 +66,7 @@ mod tests {
             .build()
             .unwrap();
         let mut tok = tokenizers::Tokenizer::new(model);
-        tok.with_pre_tokenizer(Some(tokenizers::pre_tokenizers::whitespace::Whitespace::default()));
+        tok.with_pre_tokenizer(Some(tokenizers::pre_tokenizers::whitespace::Whitespace));
         serde_json::to_vec(&tok).unwrap()
     }
 

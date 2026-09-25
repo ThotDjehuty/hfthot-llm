@@ -16,8 +16,8 @@ pub struct MetricsLogger {
 }
 
 impl MetricsLogger {
-    pub fn new(path: &std::path::PathBuf) -> Self {
-        Self { path: path.clone() }
+    pub fn new(path: &std::path::Path) -> Self {
+        Self { path: path.to_path_buf() }
     }
 
     pub fn log(&self, metrics: &TrainingMetrics) {

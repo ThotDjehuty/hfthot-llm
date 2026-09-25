@@ -5,7 +5,7 @@ use candle_nn::ops::log_softmax;
 pub fn cross_entropy_loss(
     logits: &Tensor,
     labels: &Tensor,
-    label_smoothing: f32,
+    _label_smoothing: f32,
 ) -> Result<Tensor, candle_core::Error> {
     let logits = logits.to_dtype(DType::F32)?;
     let labels = labels.to_dtype(DType::I64)?;

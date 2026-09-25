@@ -3,7 +3,20 @@
 > production use, commercial deployment, or any application where failure
 > could cause harm. Use at your own risk.
 
+<div align="center">
+
+<img src="docs/source/_static/logo_thot_transparent.png" alt="thotbook-AmentI" width="360">
+
 # thotbook-AmentI
+
+[![Docs](https://readthedocs.org/projects/hfthot-llm/badge/?version=latest)](https://hfthot-llm.readthedocs.io/en/latest/)
+[![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-yellow.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
+[![Tests](https://img.shields.io/badge/tests-71%20passing-brightgreen.svg)](#)
+[![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen.svg)](#)
+
+</div>
+
 
 > **A private, local-first LLM training-to-serving pipeline in Rust.**
 > Ingest your own knowledge corpus → tokenize → fine-tune → retrieve → serve
@@ -220,9 +233,11 @@ The redaction suite keeps Rust, Python and the JS reference in parity, and
 
 ## Documentation
 
-Full documentation is hosted on **ReadTheDocs** (same account that hosts
-`optimiz-rs`): **https://thotbook-AmentI.readthedocs.io/** — see the `docs/`
-folder for the Sphinx sources.
+Full documentation is hosted on **ReadTheDocs**:
+**https://hfthot-llm.readthedocs.io/** — see the `docs/` folder for the
+Sphinx sources. Sibling projects: [optimiz-rs](https://optimiz-r.readthedocs.io/)
+(numerical primitives) and [Polarway](https://polarway.readthedocs.io/)
+(lakehouse / streaming).
 
 ## Roadmap
 

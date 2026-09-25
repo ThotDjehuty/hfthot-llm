@@ -12,19 +12,12 @@ use crate::pdf;
 
 /// Configuration for the ingestion pipeline.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct IngestConfig {
     pub chunk_config: ChunkConfig,
     pub sources: Vec<PathBuf>,
 }
 
-impl Default for IngestConfig {
-    fn default() -> Self {
-        Self {
-            chunk_config: ChunkConfig::default(),
-            sources: vec![],
-        }
-    }
-}
 
 /// A single ingested document chunk.
 #[derive(Debug, Clone)]

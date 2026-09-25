@@ -39,7 +39,7 @@ pub struct SearchResult {
 }
 
 /// BM25 scoring parameters.
-struct Bm25Params {
+pub struct Bm25Params {
     avg_dl: f32,
     k1: f32,
     b: f32,
@@ -57,6 +57,12 @@ pub struct SearchEngine {
     /// Document lengths
     pub doc_lengths: Vec<usize>,
     pub bm25_params: Bm25Params,
+}
+
+impl Default for SearchEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SearchEngine {
@@ -102,7 +108,7 @@ impl SearchEngine {
         for (term, count) in term_count {
             self.inverted_index
                 .entry(term)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((idx, count));
         }
 

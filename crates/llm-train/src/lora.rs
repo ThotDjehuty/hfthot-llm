@@ -1,6 +1,5 @@
 use candle_core::{Tensor, DType};
 
-use crate::error::TrainError;
 
 /// LoRA adapter layer configuration.
 #[derive(Debug, Clone)]
@@ -63,7 +62,7 @@ impl LoraAdapter {
     pub fn forward(&self, input: &Tensor) -> Result<Tensor, candle_core::Error> {
         let hidden = input.matmul(&self.a)?;
         let adapted = hidden.matmul(&self.b)?;
-        Ok(adapted.affine(self.scale as f64, 0.0)?)
+        adapted.affine(self.scale as f64, 0.0)
     }
 }
 
