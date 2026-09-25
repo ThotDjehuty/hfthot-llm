@@ -455,4 +455,4 @@ The temperature :math:`T` controls sampling diversity:
 
    p_T(x_i) = \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}
 
-As :math:`T \to 0$, sampling becomes greedy; as :math:`T \to \infty$, uniform.
+As :math:`T \to 0`, sampling becomes greedy; as :math:`T \to \infty`, uniform.

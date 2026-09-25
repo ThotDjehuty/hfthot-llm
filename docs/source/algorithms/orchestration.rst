@@ -50,20 +50,20 @@ subtasks:
 .. code-block:: text
 
    "Write a paper on rough volatility"
-   │
-   ├─▶ Research: Literature review
-   │   └─▶ Research: ArXiv search "rough volatility"
-   │
-   ├─▶ Mathematics: Derive key equations
-   │   ├─▶ Math: Volterra process definition
-   │   └─▶ Math: Fractional Riccati solution
-   │
-   ├─▶ Writing: Generate LaTeX sections
-   │   ├─▶ Write: Introduction
-   │   ├─▶ Write: Main results (depends on Math)
-   │   └─▶ Write: Conclusion (depends on all)
-   │
-   └─▶ Critique: Quality review
+   |
+   +-> Research: Literature review
+   |   +-> Research: ArXiv search "rough volatility"
+   |
+   +-> Mathematics: Derive key equations
+   |   +-> Math: Volterra process definition
+   |   +-> Math: Fractional Riccati solution
+   |
+   +-> Writing: Generate LaTeX sections
+   |   +-> Write: Introduction
+   |   +-> Write: Main results (depends on Math)
+   |   +-> Write: Conclusion (depends on all)
+   |
+   +-> Critique: Quality review
 
 **Decomposition prompt:**
 
@@ -112,25 +112,25 @@ The system improves through training on its own high-quality outputs:
 
 .. code-block:: text
 
-   ┌─────────────────────────────────────────────────────────┐
-   │                                                         │
-   │  Execute Task ──▶ Evaluate Quality ──▶ Score ≥ 70?     │
-   │       │                                    │            │
-   │       │                              ┌─────┴─────┐      │
-   │       │                              │    Yes    │      │
-   │       │                              ▼           │      │
-   │       │                        Add to Queue      │      │
-   │       │                              │           │      │
-   │       │                    Queue ≥ 100?          │      │
-   │       │                              │           │      │
-   │       │                        ┌─────┴─────┐     │      │
-   │       │                        │    Yes    │     │      │
-   │       │                        ▼           │     │      │
-   │       │                   Fine-tune LoRA   │     │      │
-   │       │                        │           │     │      │
-   │       └────────────────────────┴───────────┘     │      │
-   │                                                  │      │
-   └──────────────────────────────────────────────────┘      │
+   +---------------------------------------------------------+
+   |                                                         |
+   |  Execute Task --> Evaluate Quality --> Score ≥ 70?     |
+   |       |                                    |            |
+   |       |                              +-----+-----+      |
+   |       |                              |    Yes    |      |
+   |       |                              v           |      |
+   |       |                        Add to Queue      |      |
+   |       |                              |           |      |
+   |       |                    Queue ≥ 100?          |      |
+   |       |                              |           |      |
+   |       |                        +-----+-----+     |      |
+   |       |                        |    Yes    |     |      |
+   |       |                        v           |     |      |
+   |       |                   Fine-tune LoRA   |     |      |
+   |       |                        |           |     |      |
+   |       +------------------------+-----------+     |      |
+   |                                                  |      |
+   +--------------------------------------------------+      |
 
 **Quality evaluation:**
 
