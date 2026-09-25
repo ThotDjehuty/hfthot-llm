@@ -3,6 +3,61 @@
 All notable changes to thotbook-AmentI are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-09-25
+
+### Added
+
+- **Physics-Informed Neural Networks** (`notebooks/04_pinn_physics.ipynb`,
+  `pinn_core.py`, `pinn_problems.py`) — solves the Dirac, Brans-Dicke and
+  Wheeler-DeWitt equations on CPU, each graded against an independent
+  reference (exact closed form / exact Nariai power law / Radau at
+  `rtol=1e-12` cross-checked by an Airy asymptotic). Relative L2 errors
+  3.9e-4, 4.3e-3 and 1.8e-5 respectively.
+- **Membership inference at scale** (`notebooks/02_mia_real_corpus.ipynb`) —
+  the privacy audit run over a real research corpus with document-level
+  splits, calibrated membership probabilities (Platt scaling + reliability
+  diagram + ECE) and block-bootstrap CIs.
+- **Federated learning** (`notebooks/03_federated_ensemble.ipynb`,
+  `fed_core.py`) — FedAvg with an honest-but-curious server running the
+  update-based attack, plus the four defence families of Bai et al.'s survey
+  (partial sharing, secure aggregation, noise perturbation, anomaly
+  detection) and the measured privacy/utility trade-off.
+- `docs/source/algorithms/variational_calculus.rst` — Euler-Lagrange,
+  gradient flow, the ELBO, and the mapping from each functional-minimisation
+  problem to its optimiz-rs primitive.
+- `docs/source/algorithms/membership_inference.rst` — attack/defence theory
+  with citations (Shokri 2017, Yeom 2018, Carlini 2022).
+- Explicit AdamW update equations in `docs/source/algorithms/training.rst`.
+- `crates/llm-train/examples/membership_probe.rs` — real LoRA training probe
+  (candle autograd + `AdamWOptimizer`) with `--hidden` / `--limit` controls.
+
+### Fixed
+
+- **`AdamWOptimizer` never applied weight decay.** The `weight_decay` field
+  was stored but unused, making the optimiser plain Adam despite the name and
+  the documented equation. Decay is now applied decoupled (Loshchilov &
+  Hutter 2019), with a regression test that fails if it regresses.
+- All 33 `cargo clippy --workspace --all-targets -- -D warnings` errors
+  (manual prefix stripping, private-type-in-public-field, `&PathBuf` over
+  `&Path`, `loop`/`match` over `while let`).
+
+### Changed
+
+- Workspace version `0.2.0` → `0.3.0`.
+- `notebooks/data/` is gitignored: it holds verbatim text extracted from
+  private and third-party copyrighted PDFs and must never reach a public
+  remote. Regenerate locally via `THOTBOOK_PAPERS_DIR=... python3
+  notebooks/extract_corpus.py`.
+- `papers/thotbook_amenti_arxiv.tex`: corrected the hardware section, which
+  claimed an Apple M1 Max; all measurements in this repo were taken on an
+  Intel Core i9-8950HK with no GPU. Added a verified-benchmarks section and
+  an explicit threats-to-validity subsection marking the inherited throughput
+  and retrieval tables as provisional and not re-measured.
+
+### Notes
+
+- 71/71 tests pass; `cargo clippy -D warnings` is clean.
+
 ## [0.2.0] - 2026-09-25
 
 ### Added
@@ -44,4 +99,5 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `cargo clippy --workspace -- -D warnings` is not yet clean (pending
   follow-up cleanup pass).
 
+[0.3.0]: https://github.com/ThotDjehuty/hfthot-llm/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ThotDjehuty/hfthot-llm/releases/tag/v0.2.0

@@ -128,11 +128,7 @@ impl Trainer {
             tracing::info!(epoch, "starting epoch");
             let epoch_start = Instant::now();
 
-            loop {
-                let batch = match dataset.next_batch() {
-                    Some(b) => b,
-                    None => break,
-                };
+            while let Some(batch) = dataset.next_batch() {
 
                 let step_start = Instant::now();
                 let lr = scheduler.lr_at(global_step);

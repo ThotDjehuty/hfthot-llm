@@ -32,10 +32,10 @@ pub fn extract_markdown(path: &Path) -> Result<String, IngestError> {
 
 /// Strip YAML frontmatter from markdown content, returning (frontmatter, body).
 pub fn strip_frontmatter(content: &str) -> (Option<String>, &str) {
-    if content.starts_with("---") {
-        if let Some(end) = content[3..].find("---") {
-            let fm = &content[3..3 + end];
-            let body = &content[3 + end + 3..];
+    if let Some(rest) = content.strip_prefix("---") {
+        if let Some(end) = rest.find("---") {
+            let fm = &rest[..end];
+            let body = &rest[end + 3..];
             return (Some(fm.trim().to_string()), body.trim());
         }
     }

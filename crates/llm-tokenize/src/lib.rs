@@ -109,7 +109,7 @@ mod tests {
             .build()
             .unwrap();
         let mut tok = Tokenizer::new(model);
-        tok.with_pre_tokenizer(Some(tokenizers::pre_tokenizers::whitespace::Whitespace::default()));
+        tok.with_pre_tokenizer(Some(tokenizers::pre_tokenizers::whitespace::Whitespace));
         tok
     }
 

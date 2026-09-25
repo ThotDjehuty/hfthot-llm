@@ -24,3 +24,16 @@ docs/_build/
 # --- Never publish agent/workspace-management files to this public repo ---
 /sAlvIers/
 *.agent.md
+
+# Extracted research-corpus text and derived artifacts.
+# These contain verbatim text from private/proprietary and third-party
+# copyrighted PDFs and must never reach a public remote. Regenerate locally
+# with: python3 notebooks/extract_corpus.py && python3 notebooks/prepare_mia_splits.py
+notebooks/data/
+/tmp/fed_survey.txt
+
+# LaTeX build artifacts
+papers/*.aux
+papers/*.log
+papers/*.out
+papers/*.toc

@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.abspath("../../../python"))
 project = "thotbook-AmentI"
 copyright = "2026, HFThot Research Lab"
 author = "HFThot Research Lab"
-release = "0.2.0"
-version = "0.2.0"
+release = "0.3.0"
+version = "0.3.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -66,7 +66,7 @@ html_theme_options = {
     "source_repository": "https://github.com/ThotDjehuty/hfthot-llm",
     "source_branch": "main",
     "source_directory": "docs/source/",
-    "announcement": "🚀 <strong>thotbook-AmentI v0.2.0</strong> — llm-auto, llm-ingest &amp; llm-salviers • <a href=\"https://hfthot-lab.eu/thotbook-amenti.html\">HFThot Research Lab</a>",
+    "announcement": "🚀 <strong>thotbook-AmentI v0.3.0</strong> — PINNs, federated learning &amp; privacy audit • <a href=\"https://hfthot-lab.eu/thotbook-amenti.html\">HFThot Research Lab</a>",
     "footer_icons": [
         {
             "name": "GitHub",

@@ -49,7 +49,6 @@ impl AdamWOptimizer {
         let m = self.m.get_mut(name).unwrap();
         let v = self.v.get_mut(name).unwrap();
 
-        // Decoupled weight decay
         let g = grad.clone();
 
         // m_t = beta1 * m_{t-1} + (1 - beta1) * g
@@ -69,10 +68,17 @@ impl AdamWOptimizer {
         let m_hat = m.affine(1.0 / b1 as f64, 0.0)?;
         let v_hat = v.affine(1.0 / b2 as f64, 0.0)?;
 
-        // Update: param -= lr * m_hat / (sqrt(v_hat) + eps)
+        // Update: param -= lr * (m_hat / (sqrt(v_hat) + eps) + wd * param)
+        //
+        // The weight-decay term is applied to the parameter itself rather than
+        // folded into the gradient — this is exactly what makes it *decoupled*
+        // (Loshchilov & Hutter, 2019) and what distinguishes AdamW from
+        // Adam+L2: the decay is not rescaled by the adaptive denominator
+        // sqrt(v_hat). See docs/source/algorithms/training.rst.
         let denom = (v_hat.sqrt()?.affine(1.0, self.eps as f64))?;
         let update = m_hat.broadcast_div(&denom)?;
-        let update = update.affine(self.lr as f64, 0.0)?;
+        let decay = param_f32.affine(self.weight_decay as f64, 0.0)?;
+        let update = (update + decay)?.affine(self.lr as f64, 0.0)?;
         *param = (param_f32 - update)?.to_dtype(param.dtype())?;
         Ok(())
     }
@@ -81,6 +87,20 @@ impl AdamWOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn weight_decay_is_applied() {
+        // With a zero gradient, plain Adam would leave the parameter
+        // untouched; AdamW must still shrink it by lr * wd * param.
+        let device = candle_core::Device::Cpu;
+        let mut opt = AdamWOptimizer::new(0.1, 0.5);
+        let mut param = Tensor::ones((4,), DType::F32, &device).unwrap();
+        let grad = Tensor::zeros((4,), DType::F32, &device).unwrap();
+        opt.update_param("p", &mut param, &grad).unwrap();
+        let v = param.to_vec1::<f32>().unwrap()[0];
+        // expected: 1 - 0.1 * (0 + 0.5 * 1) = 0.95
+        assert!((v - 0.95).abs() < 1e-5, "decay not applied: got {v}");
+    }
 
     #[test]
     fn optimizer_step() {
