@@ -37,10 +37,11 @@ Every stage reads from / writes to an **Apache Arrow → Delta Lake** lakehouse
 | --- | --- | --- | --- |
 | M1 | `llm-corpus` | Redact + ingest SQLite sources (sessions, papers, notebooks, equations, arxiv) into Delta tables | ✅ implemented |
 | M2 | `llm-tokenize` | Tokenize lakehouse tables into sharded Arrow IPC training files | ✅ implemented |
-| M3 | `llm-train` | CPU QLoRA SFT of Qwen3-4B on the tokenized corpus | 🚧 in development |
-| M4 | `llm-rag` | Embeddings + HNSW retrieval over the corpus | 🚧 in development |
-| M5 | `llm-serve` | Private OpenAI-compatible Qwen3-8B server (candle, CPU) | ✅ implemented |
+| M3 | `llm-train` | CPU LoRA fine-tuning with real forward/loss computation | ✅ implemented |
+| M4 | `llm-rag` | Embeddings + HNSW retrieval over the corpus | ✅ implemented |
+| M5 | `llm-serve` | Private OpenAI-compatible Qwen3-8B server (candle, CPU) + `/v1/embeddings` | ✅ implemented |
 | M6 | `llm-corpus` (crawler) | arXiv reference-closure citation crawler → `datasets.citations` | 🚧 planned |
+| **M7** | `llm-auto` | **Autonomous orchestration**: task decomposition, sub-agents, self-training, paper generation | ✅ implemented |
 
 ## Design principles
 
@@ -56,6 +57,8 @@ Every stage reads from / writes to an **Apache Arrow → Delta Lake** lakehouse
   `POST /v1/chat/completions` on your own model.
 - **Parity everywhere.** The redaction rules and tokenizer defaults are kept
   in lock-step between Rust, Python and the JS reference implementation.
+- **Autonomous research.** Self-improving LLM that can decompose tasks, train
+  on its own outputs, and generate research papers without external model dependencies.
 
 ## Repository layout
 

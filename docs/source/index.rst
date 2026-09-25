@@ -35,6 +35,17 @@ open-source.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Algorithms
+
+   algorithms
+   algorithms/training
+   algorithms/inference
+   algorithms/embeddings
+   algorithms/rag
+   algorithms/orchestration
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
 
    api_reference

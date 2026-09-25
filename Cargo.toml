@@ -1,16 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/llm-auto",
     "crates/llm-corpus",
     "crates/llm-tokenize",
     "crates/llm-train",
     "crates/llm-rag",
     "crates/llm-serve",
     "crates/llm-cli",
+    "crates/llm-ingest",
+    "crates/llm-salviers",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
