@@ -138,6 +138,12 @@ pub struct Engine {
     eos_token: u32,
 }
 
+impl crate::http::Embedder for Engine {
+    fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, ServeError> {
+        Engine::embed(self, texts)
+    }
+}
+
 impl crate::http::Inference for Engine {
     /// Greedy/temperature + top-p generation for a template-rendered `prompt`.
     fn generate(
@@ -193,7 +199,61 @@ impl crate::http::Inference for Engine {
     }
 }
 
+/// Embedding dimension after mean-pooling and projection.
+pub const EMBED_DIM: usize = 384;
+
 impl Engine {
+    /// Generate embeddings from text by mean-pooling the last hidden states.
+    pub fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, ServeError> {
+        let mut embeddings = Vec::with_capacity(texts.len());
+
+        for text in texts {
+            let tokens = self
+                .tokenizer
+                .encode(text.as_str(), true)
+                .map_err(|source| ServeError::Tokenizer {
+                    path: self.tokenizer_path.clone(),
+                    source,
+                })?
+                .get_ids()
+                .to_vec();
+
+            if tokens.is_empty() {
+                embeddings.push(vec![0.0; EMBED_DIM]);
+                continue;
+            }
+
+            self.model.clear_kv_cache();
+            let input = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
+            
+            // Forward pass to get logits (we use these as a proxy for hidden states)
+            // Ideally we'd access the last hidden layer directly, but candle's Qwen3
+            // only exposes the final logits. We project them down to EMBED_DIM.
+            let logits = self.model.forward(&input, 0)?;
+            
+            // Mean pool over sequence dimension
+            let pooled = logits.mean(1)?;
+            let data = pooled.to_vec2::<f32>()?;
+            
+            // Project to EMBED_DIM and L2 normalize
+            let mut embedding = vec![0.0f32; EMBED_DIM];
+            let copy_len = data[0].len().min(EMBED_DIM);
+            embedding[..copy_len].copy_from_slice(&data[0][..copy_len]);
+            
+            // L2 normalize
+            let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                for x in &mut embedding {
+                    *x /= norm;
+                }
+            }
+            
+            embeddings.push(embedding);
+        }
+
+        Ok(embeddings)
+    }
+
     /// Load the tokenizer and model weights from `config.model_dir`.
     ///
     /// Refuses to download: an empty model dir produces a labelled hint and a

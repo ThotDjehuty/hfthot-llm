@@ -1,9 +1,12 @@
 //! thotbook-AmentI M5 — private OpenAI-compatible inference server (Qwen3-8B, candle, CPU).
+//! Enhanced with RAG context retrieval and agent dispatch.
 
+pub mod agent;
 pub mod config;
 pub mod engine;
 pub mod error;
 pub mod http;
+pub mod rag;
 
 use config::ServeConfig;
 use error::ServeError;
