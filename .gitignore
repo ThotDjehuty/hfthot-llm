@@ -20,3 +20,7 @@ dist/
 .DS_Store
 *.swp
 docs/_build/
+
+# --- Never publish agent/workspace-management files to this public repo ---
+/sAlvIers/
+*.agent.md

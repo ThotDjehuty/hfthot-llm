@@ -19,6 +19,11 @@ pub trait Inference {
     fn generate(&mut self, prompt: &str, params: &GenerationParams) -> Result<String, ServeError>;
 }
 
+/// Backend capable of generating embeddings.
+pub trait Embedder {
+    fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, ServeError>;
+}
+
 /// Shared application state.
 pub struct AppState<E: Inference> {
     engine: Arc<Mutex<E>>,
@@ -44,11 +49,12 @@ impl<E: Inference> AppState<E> {
 }
 
 /// Build the axum router for the OpenAI-compatible surface.
-pub fn router<E: Inference + Send + Sync + 'static>(state: AppState<E>) -> Router {
+pub fn router<E: Inference + Embedder + Send + Sync + 'static>(state: AppState<E>) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions::<E>))
+        .route("/v1/embeddings", post(embeddings::<E>))
         .with_state(state)
 }
 
@@ -101,6 +107,51 @@ pub struct ModelInfo {
     pub owned_by: &'static str,
 }
 
+/// OpenAI-compatible embeddings request.
+#[derive(Debug, Deserialize)]
+pub struct EmbeddingsRequest {
+    pub input: EmbeddingInput,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum EmbeddingInput {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl EmbeddingInput {
+    pub fn to_vec(self) -> Vec<String> {
+        match self {
+            EmbeddingInput::Single(s) => vec![s],
+            EmbeddingInput::Multiple(v) => v,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmbeddingsResponse {
+    pub object: &'static str,
+    pub data: Vec<EmbeddingData>,
+    pub model: String,
+    pub usage: EmbeddingUsage,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmbeddingData {
+    pub object: &'static str,
+    pub embedding: Vec<f32>,
+    pub index: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmbeddingUsage {
+    pub prompt_tokens: usize,
+    pub total_tokens: usize,
+}
+
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
     pub status: &'static str,
@@ -123,7 +174,7 @@ async fn health() -> Json<HealthResponse> {
     Json(HealthResponse { status: "ok" })
 }
 
-async fn list_models<E: Inference + Send + Sync>(
+async fn list_models<E: Inference + Embedder + Send + Sync>(
     State(state): State<AppState<E>>,
 ) -> Json<ModelsResponse> {
     Json(ModelsResponse {
@@ -134,6 +185,46 @@ async fn list_models<E: Inference + Send + Sync>(
             owned_by: "thotbook",
         }],
     })
+}
+
+async fn embeddings<E: Inference + Embedder + Send + Sync + 'static>(
+    State(state): State<AppState<E>>,
+    Json(req): Json<EmbeddingsRequest>,
+) -> Result<Json<EmbeddingsResponse>, ServeError> {
+    let texts = req.input.to_vec();
+    if texts.is_empty() {
+        return Err(ServeError::http("`input` must not be empty"));
+    }
+
+    let prompt_tokens: usize = texts.iter().map(|t| t.split_whitespace().count()).sum();
+    let engine = Arc::clone(&state.engine);
+
+    let embeddings = tokio::task::spawn_blocking(move || {
+        let mut engine = engine.lock().map_err(|_| ServeError::http("engine lock poisoned"))?;
+        engine.embed(&texts)
+    })
+    .await
+    .map_err(|e| ServeError::http(format!("embedding task failed: {e}")))??;
+
+    let data: Vec<EmbeddingData> = embeddings
+        .into_iter()
+        .enumerate()
+        .map(|(i, embedding)| EmbeddingData {
+            object: "embedding",
+            embedding,
+            index: i,
+        })
+        .collect();
+
+    Ok(Json(EmbeddingsResponse {
+        object: "list",
+        data,
+        model: state.config.model_id.clone(),
+        usage: EmbeddingUsage {
+            prompt_tokens,
+            total_tokens: prompt_tokens,
+        },
+    }))
 }
 
 async fn chat_completions<E: Inference + Send + Sync + 'static>(
@@ -228,6 +319,12 @@ mod tests {
         }
     }
 
+    impl Embedder for FakeEngine {
+        fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, ServeError> {
+            Ok(texts.iter().map(|_| vec![0.0; 384]).collect())
+        }
+    }
+
     #[derive(Clone, Default)]
     struct FailingEngine;
 
@@ -241,7 +338,13 @@ mod tests {
         }
     }
 
-    async fn spawn_server<E: Inference + Send + Sync + 'static>(
+    impl Embedder for FailingEngine {
+        fn embed(&mut self, _texts: &[String]) -> Result<Vec<Vec<f32>>, ServeError> {
+            Err(ServeError::model("boom"))
+        }
+    }
+
+    async fn spawn_server<E: Inference + Embedder + Send + Sync + 'static>(
         engine: E,
     ) -> String {
         let state = AppState::new(engine, ServeConfig::default());
