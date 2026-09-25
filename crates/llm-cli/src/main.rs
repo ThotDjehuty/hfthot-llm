@@ -200,7 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Rag { action } => match action {
             RagAction::Build { input } => {
                 tracing::info!(?input, "building RAG index");
-                let mut store = llm_rag::RagStore::new(&input);
+                let store = llm_rag::RagStore::new(&input);
                 store.save()?;
                 println!("RAG index built");
             }
@@ -230,7 +230,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Status => {
-            println!("thotbook-AmentI v0.2.0");
+            println!("thotbook-AmentI v0.3.0");
             println!("Crates: llm-corpus, llm-tokenize, llm-train, llm-rag, llm-serve, llm-cli, llm-ingest, llm-salviers, llm-auto");
             println!("Model: Qwen3-8B (candle, CPU)");
             println!("sAlvIers agents: sAlvIers/");

@@ -50,7 +50,7 @@ impl AgentRegistry {
                 && path
                     .file_name()
                     .and_then(|n| n.to_str())
-                    .map_or(false, |n| n.contains("agent"))
+                    .is_some_and(|n| n.contains("agent"))
             {
                 match Self::parse_agent_file(&path) {
                     Ok(agent) => agents.push(agent),
@@ -201,10 +201,10 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 
 /// Strip YAML frontmatter, returning (frontmatter, body).
 fn strip_frontmatter(content: &str) -> (Option<String>, &str) {
-    if content.starts_with("---") {
-        if let Some(end) = content[3..].find("---") {
-            let fm = &content[3..3 + end];
-            let body = &content[3 + end + 3..];
+    if let Some(rest) = content.strip_prefix("---") {
+        if let Some(end) = rest.find("---") {
+            let fm = &rest[..end];
+            let body = &rest[end + 3..];
             return (Some(fm.trim().to_string()), body.trim());
         }
     }

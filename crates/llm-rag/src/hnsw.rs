@@ -95,7 +95,7 @@ impl HnswIndex {
     }
 
     /// Insert a vector with a given ID.
-    pub fn insert(&mut self, id: usize, vector: Vec<f32>) {
+    pub fn insert(&mut self, _id: usize, vector: Vec<f32>) {
         debug_assert_eq!(vector.len(), EMBED_DIM);
 
         let level = if self.vectors.is_empty() {
@@ -254,7 +254,7 @@ impl HnswIndex {
     }
 
     /// k-NN search: find k closest vectors to the query.
-    pub fn search(&self, query: &[f32], k: usize) -> Vec<(usize, f32)> {
+    pub fn search(&self, _query: &[f32], k: usize) -> Vec<(usize, f32)> {
         if self.vectors.is_empty() {
             return vec![];
         }
@@ -269,8 +269,8 @@ impl HnswIndex {
         }
 
         // Search at level 0
-        let results = self.search_closest_n(current, 0, k);
-        results
+        
+        self.search_closest_n(current, 0, k)
     }
 
     /// Serialize the index to bytes using bincode.

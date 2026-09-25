@@ -89,6 +89,32 @@ Only non-padding tokens (``label != -100``) contribute to the loss:
        Ok((masked_nll.sum_all()? / mask.sum_all()?.clamp(1.0, f64::MAX)?).to_scalar()?)
    }
 
+AdamW Optimizer
+----------------
+
+LoRA parameters :math:`(A, B)` are updated with **AdamW** — Adam with
+decoupled weight decay (Loshchilov & Hutter, 2019). At step :math:`t`, for
+gradient :math:`g_t = \nabla_\theta \mathcal{L}(\theta_{t-1})`:
+
+.. math::
+
+   m_t &= \beta_1 m_{t-1} + (1-\beta_1)\, g_t \\
+   v_t &= \beta_2 v_{t-1} + (1-\beta_2)\, g_t^2 \\
+   \hat{m}_t &= \frac{m_t}{1 - \beta_1^t}, \qquad
+   \hat{v}_t = \frac{v_t}{1 - \beta_2^t} \\
+   \theta_t &= \theta_{t-1} - \eta_t \left(
+     \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \varepsilon} + \lambda\, \theta_{t-1}
+   \right)
+
+with :math:`\beta_1 = 0.9`, :math:`\beta_2 = 0.999`,
+:math:`\varepsilon = 10^{-8}`, and decoupled weight decay
+:math:`\lambda = 0.01` applied directly to :math:`\theta_{t-1}` rather
+than folded into :math:`g_t` — this is what keeps weight decay from
+being rescaled by :math:`\hat{v}_t`, the fix that motivated AdamW over
+plain Adam+L2. :math:`\eta_t` is the cosine-annealed rate below. This is
+the discrete-time update whose continuous-time (gradient-flow) limit is
+derived in :doc:`variational_calculus`.
+
 Cosine Learning Rate Schedule
 -----------------------------
 
