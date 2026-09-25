@@ -18,7 +18,13 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "myst_parser",
+    "sphinxcontrib.mermaid",
+    "sphinx_copybutton",
 ]
 
 templates_path = ["_templates"]
@@ -80,3 +86,63 @@ html_theme_options = {
         },
     ],
 }
+
+# Napoleon settings for Google/NumPy docstring parsing
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_preprocess_types = False
+napoleon_type_aliases = None
+napoleon_attr_annotations = True
+
+# Intersphinx configuration
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+}
+
+# MyST parser configuration for markdown support
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "fieldlist",
+    "html_admonition",
+    "html_image",
+    "linkify",
+    "replacements",
+    "smartquotes",
+    "strikethrough",
+    "substitution",
+    "tasklist",
+]
+
+# Custom CSS — shared stylesheet with optimiz-rs
+html_css_files = ["custom.css"]
+
+# Mermaid configuration
+mermaid_version = "10.9.0"
+mermaid_init_js = (
+    "mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:"
+    "{primaryColor:'#c2410c',primaryTextColor:'#fff',primaryBorderColor:'#9a3412',"
+    "lineColor:'#fb923c',secondaryColor:'#1a1a2e',tertiaryColor:'#0f0f1a'}});"
+)
+
+# Copy button configuration
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_prompt_is_regexp = True
+copybutton_only_copy_prompt_lines = True
+copybutton_remove_prompts = True
+
+# Todo extension
+todo_include_todos = True
+todo_emit_warnings = True
