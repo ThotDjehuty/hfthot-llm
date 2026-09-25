@@ -3388,7 +3388,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llm-auto"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "regex",
@@ -3403,7 +3403,7 @@ dependencies = [
 
 [[package]]
 name = "llm-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "llm-auto",
@@ -3423,7 +3423,7 @@ dependencies = [
 
 [[package]]
 name = "llm-corpus"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "deltalake",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "llm-ingest"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "fancy-regex",
  "memmap2",
@@ -3462,7 +3462,7 @@ dependencies = [
 
 [[package]]
 name = "llm-rag"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "bincode",
@@ -3482,7 +3482,7 @@ dependencies = [
 
 [[package]]
 name = "llm-salviers"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "parking_lot",
@@ -3497,7 +3497,7 @@ dependencies = [
 
 [[package]]
 name = "llm-serve"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "accelerate-src",
  "axum",
@@ -3518,7 +3518,7 @@ dependencies = [
 
 [[package]]
 name = "llm-tokenize"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "arrow 57.3.1",
@@ -3538,7 +3538,7 @@ dependencies = [
 
 [[package]]
 name = "llm-train"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arrow 54.3.1",
  "candle-core",

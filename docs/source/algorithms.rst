@@ -17,6 +17,8 @@ and how they enable GPU-free training of billion-parameter language models.
    algorithms/embeddings
    algorithms/rag
    algorithms/orchestration
+   algorithms/variational_calculus
+   algorithms/membership_inference
 
 Design Philosophy
 -----------------
@@ -68,6 +70,20 @@ optimization:
 **Topology** (``optimiz_rs::topology``)
    Used in the RAG module for persistent homology-based document
    similarity, providing better retrieval than cosine similarity alone.
+
+**BSDE / Mean-Field Games** (``optimiz_rs::bsde``, ``optimiz_rs::mfg``)
+   The learning-rate schedule and the ``llm-auto`` self-training loop are
+   both functional-minimisation problems in disguise — see
+   :doc:`algorithms/variational_calculus` for the exact correspondence
+   between the Crank–Nicolson :math:`\theta`-scheme / Fokker–Planck–HJB
+   sweep and the discrete training dynamics.
+
+**Differential Evolution / MMD / Mutual Information**
+   (``optimiz_rs::differential_evolution``, ``optimiz_rs::mmd_gaussian``,
+   ``optimiz_rs::mutual_information``)
+   Used by the membership-inference privacy audit
+   (:doc:`algorithms/membership_inference`) to calibrate attack decision
+   thresholds and to test member/non-member score distinguishability.
 
 Integration with Polarway
 -------------------------

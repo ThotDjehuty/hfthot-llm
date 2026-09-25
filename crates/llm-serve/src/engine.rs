@@ -331,7 +331,7 @@ fn load_shards(shards: &[PathBuf], device: &Device) -> Result<HashMap<String, Te
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::Inference;
+    
 
     fn logits() -> Tensor {
         Tensor::new(&[0.1f32, 0.2, 0.9, 3.0, 0.4], &Device::Cpu)

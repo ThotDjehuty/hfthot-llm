@@ -178,7 +178,7 @@ impl Agent {
 
     /// Execute a task and return the output.
     pub async fn execute(&self, task: &Task) -> Result<String, AutoError> {
-        let prompt = format!(
+        let _prompt = format!(
             "{}\n\n## Task\n{}\n\n## Input\n{}",
             self.config.system_prompt, task.description, task.input
         );
