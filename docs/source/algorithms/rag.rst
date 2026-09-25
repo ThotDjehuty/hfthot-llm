@@ -10,9 +10,9 @@ Architecture Overview
 
 .. code-block:: text
 
-   Query ──┬──▶ HNSW (dense)  ──┬──▶ RRF Fusion ──▶ Top-k Docs ──▶ LLM
-           │                     │
-           └──▶ BM25 (sparse) ──┘
+   Query --+--> HNSW (dense)  --+--> RRF Fusion --> Top-k Docs --> LLM
+           |                     |
+           +--> BM25 (sparse) --+
 
 **Reciprocal Rank Fusion (RRF):**
 

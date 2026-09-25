@@ -4,7 +4,10 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../../python"))
+# The importable package root is <repo>/python/thotbook_amenti/.
+# The previous value ("../../../python") resolved outside the repo,
+# which is why autodoc reported "No module named thotbook_amenti".
+sys.path.insert(0, os.path.abspath("../../python/thotbook_amenti"))
 
 # -- Project information -----------------------------------------------------
 project = "thotbook-AmentI"
@@ -68,7 +71,6 @@ html_theme_options = {
     },
     "sidebar_hide_name": False,
     "navigation_with_keys": True,
-    "top_of_page_buttons": ["view", "edit"],
     "source_repository": "https://github.com/ThotDjehuty/hfthot-llm",
     "source_branch": "main",
     "source_directory": "docs/source/",
@@ -142,6 +144,34 @@ copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: 
 copybutton_prompt_is_regexp = True
 copybutton_only_copy_prompt_lines = True
 copybutton_remove_prompts = True
+
+# -- LaTeX / PDF ------------------------------------------------------------
+# RTD builds a PDF as well as HTML. pdflatex aborts on glyphs outside the
+# font encoding, so declare the ones our prose legitimately uses rather than
+# letting the build fail on them.
+latex_engine = "pdflatex"
+latex_elements = {
+    "papersize": "a4paper",
+    "pointsize": "10pt",
+    # pdflatex aborts on glyphs outside the font encoding. Declare the ones
+    # our prose legitimately uses. These must be LITERAL characters --
+    # backslash-u escapes are a Python notion, not a TeX one.
+    "preamble": "\n".join([
+        r"\usepackage{newunicodechar}",
+        r"\newunicodechar{\u2192}{$\rightarrow$}".replace("\\u2192", "\u2192"),
+        r"\newunicodechar{\u2265}{$\geq$}".replace("\\u2265", "\u2265"),
+        r"\newunicodechar{\u2264}{$\leq$}".replace("\\u2264", "\u2264"),
+        r"\newunicodechar{\u2248}{$\approx$}".replace("\\u2248", "\u2248"),
+        r"\newunicodechar{\u00d7}{$\times$}".replace("\\u00d7", "\u00d7"),
+        r"\newunicodechar{\u03b1}{$\alpha$}".replace("\\u03b1", "\u03b1"),
+        r"\newunicodechar{\u03b2}{$\beta$}".replace("\\u03b2", "\u03b2"),
+        r"\newunicodechar{\u03b8}{$\theta$}".replace("\\u03b8", "\u03b8"),
+        r"\newunicodechar{\u03bb}{$\lambda$}".replace("\\u03bb", "\u03bb"),
+        r"\newunicodechar{\u03bc}{$\mu$}".replace("\\u03bc", "\u03bc"),
+        r"\newunicodechar{\u03c3}{$\sigma$}".replace("\\u03c3", "\u03c3"),
+        r"\newunicodechar{\u2713}{$\checkmark$}".replace("\\u2713", "\u2713"),
+    ]),
+}
 
 # Todo extension
 todo_include_todos = True

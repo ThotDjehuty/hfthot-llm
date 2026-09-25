@@ -86,5 +86,7 @@ Append with versioning:
 
 .. math::
 
-   \text{version}_{n+1} = \text{version}_n + 1, \qquad \Delta_{n+1} = \text{append}(\Delta_n, \text{new_data})
+   \text{version}_{n+1} = \text{version}_n + 1, \qquad
+   \Delta_{n+1} = \text{append}(\Delta_n, \text{new\_data})
+
 * ``datasets.arxiv_text`` — M6 crawler output (metadata + full text + edges)

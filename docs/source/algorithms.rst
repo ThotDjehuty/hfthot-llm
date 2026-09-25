@@ -96,12 +96,18 @@ The Polarway lakehouse provides:
 
 Data flow:
 
-.. code-block:: text
+.. figure:: /_static/diagrams/thotbook_pipeline.*
+   :alt: thotbook-AmentI pipeline: ingestion (M1 corpus ingest, M2 tokenize)
+         feeds training (M3 LoRA, M4 RAG/HNSW) feeds serving (M5
+         OpenAI-compatible API, M7 llm-auto orchestration). The M6 citation
+         crawler returns references to the corpus, and every stage reads and
+         writes a versioned SQLite/Arrow/Delta lakehouse substrate.
+   :width: 100%
+   :align: center
 
-   session-corpus/     Polarway Delta        Arrow IPC         Candle
-   ├── *.md    ─────▶  datasets.corpus  ───▶  train.arrow  ───▶  Qwen3-8B
-   └── *.json          datasets.sessions      ├── input_ids
-                       datasets.equations     └── labels
+   Source markdown and JSON land in Delta tables, are tokenized into Arrow
+   IPC shards, and are consumed by the Candle training loop -- every arrow
+   crossing a versioned table boundary.
 
 Performance Characteristics
 ---------------------------

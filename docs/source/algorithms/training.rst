@@ -35,12 +35,12 @@ and :math:`r \ll d` is the rank (typically 8–64).
    pub struct LoraAdapter {
        pub lora_a: Tensor,  // [r, in_dim]
        pub lora_b: Tensor,  // [out_dim, r]
-       pub scale: f32,      // α/r scaling factor
+       pub scale: f32,      // alpha/r scaling factor
    }
 
    impl LoraAdapter {
        pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
-           // W'x = W₀x + scale · B(Ax)
+           // W'x = W0x + scale · B(Ax)
            let ax = x.matmul(&self.lora_a.t())?;
            let bax = ax.matmul(&self.lora_b.t())?;
            Ok(bax * self.scale)
