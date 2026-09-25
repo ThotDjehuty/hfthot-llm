@@ -6,16 +6,21 @@ Each problem exposes:
     .loss_fn(model)      -> closure for pinn_core.train_pinn
 
 All three have an independently-checkable ground truth, so the PINN is never
-graded against itself.
+graded against itself. Autodiff is `thotgrad` (this project); SciPy is used
+only to *generate references*, never inside the solver — grading a solver with
+itself would be circular.
 """
 from __future__ import annotations
 
 import numpy as np
-import torch
 from scipy.integrate import solve_ivp
 from scipy.special import airy
 
-from pinn_core import d, to_np
+from thotgrad import Tensor
+
+
+def _col(x) -> Tensor:
+    return Tensor(np.asarray(x, dtype=float).reshape(-1, 1))
 
 
 # ---------------------------------------------------------------------------
@@ -47,29 +52,35 @@ class DiracProblem:
         assert E > m, "need E > m for a propagating (real-k) solution"
         self.E, self.m, self.L = E, m, L
         self.k = float(np.sqrt(E ** 2 - m ** 2))
-        self.x = torch.linspace(0.0, L, n_col).reshape(-1, 1).requires_grad_(True)
-        self.x0 = torch.zeros(1, 1)
+        self.x = _col(np.linspace(0.0, L, n_col))
+        self.x0 = _col([0.0])
 
     def exact(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         u = np.cos(self.k * x)
         v = -(self.k / (self.E + self.m)) * np.sin(self.k * x)
         return u, v
 
-    def residual(self, model, x):
-        out = model(x)
-        u, v = out[:, 0:1], out[:, 1:2]
-        r1 = d(u, x) - (self.E + self.m) * v
-        r2 = d(v, x) + (self.E - self.m) * u
-        return r1, r2
-
     def loss_fn(self, model):
         def closure():
-            r1, r2 = self.residual(model, self.x)
-            phys = (r1 ** 2).mean() + (r2 ** 2).mean()
+            out, dout = model.forward_with_derivs(self.x, order=1)
+            u, v = _slice(out, 0), _slice(out, 1)
+            du = _slice(dout, 0); dv = _slice(dout, 1)
+            r1 = du - Tensor(self.E + self.m) * v
+            r2 = dv + Tensor(self.E - self.m) * u
+            phys = (r1 * r1).mean() + (r2 * r2).mean()
             o0 = model(self.x0)
-            bc = (o0[:, 0] - 1.0) ** 2 + (o0[:, 1] - 0.0) ** 2
-            return phys + 10.0 * bc.mean()
+            b_u = _slice(o0, 0) - Tensor(1.0)
+            b_v = _slice(o0, 1)
+            bc = (b_u * b_u).mean() + (b_v * b_v).mean()
+            return phys + Tensor(10.0) * bc
         return closure
+
+
+def _slice(t: Tensor, j: int) -> Tensor:
+    """Differentiable column slice t[:, j:j+1]."""
+    sel = np.zeros((t.data.shape[1], 1))
+    sel[j, 0] = 1.0
+    return t @ Tensor(sel)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +102,9 @@ class BransDickeProblem:
     consistent iff rho0 = phi0 * s * (2 omega + 3).  As omega -> infinity,
     q -> 2/3, recovering the GR dust limit -- the standard sanity check that
     Brans-Dicke reduces to general relativity.
+
+    The network learns log a and log phi, which enforces positivity
+    structurally; a and phi are recovered by exponentiation.
     """
 
     name = "Brans-Dicke (FLRW + dust)"
@@ -102,36 +116,56 @@ class BransDickeProblem:
         self.q = (2.0 + 2.0 * omega) / D
         self.s = 2.0 / D
         self.rho0 = 1.0 * self.s * (2.0 * omega + 3.0)   # phi0 = 1
-        self.t = torch.linspace(t0, t1, n_col).reshape(-1, 1).requires_grad_(True)
-        self.tic = torch.tensor([[t0]])
+        self.t = _col(np.linspace(t0, t1, n_col))
+        self.tic = _col([t0])
         self.t0 = t0
 
     def exact(self, t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         return t ** self.q, t ** self.s
 
-    def residual(self, model, t):
-        out = model(t)
-        # positivity of a and phi enforced structurally via exp
-        a = torch.exp(out[:, 0:1])
-        phi = torch.exp(out[:, 1:2])
-        adot, phidot = d(a, t), d(phi, t)
-        phiddot = d(phidot, t)
-        H = adot / a
-        rho = self.rho0 * a ** (-3)
-        rF = (3 * H ** 2 - rho / phi
-              - 0.5 * self.omega * (phidot / phi) ** 2
-              + 3 * H * (phidot / phi))
-        rS = phiddot + 3 * H * phidot - rho / (2 * self.omega + 3)
-        return rF, rS
-
     def loss_fn(self, model):
+        w = self.omega
+
         def closure():
-            rF, rS = self.residual(model, self.t)
-            phys = (rF ** 2).mean() + (rS ** 2).mean()
-            o = model(self.tic)          # a(t0)=1, phi(t0)=1 -> log = 0
-            bc = (o[:, 0] ** 2 + o[:, 1] ** 2).mean()
-            return phys + 100.0 * bc
+            out, dout, d2out = model.forward_with_derivs(self.t, order=2)
+            la, lp = _slice(out, 0), _slice(out, 1)          # log a, log phi
+            dla, dlp = _slice(dout, 0), _slice(dout, 1)
+            d2lp = _slice(d2out, 1)
+
+            # H = adot/a = d(log a)/dt ;  phidot/phi = d(log phi)/dt
+            H = dla
+            pr = dlp                                          # phidot/phi
+            # phiddot/phi = (log phi)'' + ((log phi)')^2
+            ppr = d2lp + dlp * dlp
+
+            # rho/phi = rho0 * exp(-3 log a - log phi)
+            rho_over_phi = Tensor(self.rho0) * _exp(Tensor(-3.0) * la - lp)
+
+            rF = (Tensor(3.0) * H * H - rho_over_phi
+                  - Tensor(0.5 * w) * pr * pr + Tensor(3.0) * H * pr)
+            # (S) divided through by phi: phiddot/phi + 3H phidot/phi
+            #                              = rho/((2w+3) phi)
+            rS = ppr + Tensor(3.0) * H * pr - rho_over_phi / Tensor(2.0 * w + 3.0)
+
+            phys = (rF * rF).mean() + (rS * rS).mean()
+            o = model(self.tic)                # log a(t0)=0, log phi(t0)=0
+            b0, b1 = _slice(o, 0), _slice(o, 1)
+            bc = (b0 * b0).mean() + (b1 * b1).mean()
+            return phys + Tensor(100.0) * bc
         return closure
+
+
+def _exp(t: Tensor) -> Tensor:
+    """exp via tanh-free identity is unavailable; add a dedicated node."""
+    e = np.exp(t.data)
+    out = Tensor(e, _children=(t,))
+
+    def _bw():
+        if t.requires_grad:
+            t._ensure_grad()
+            t.grad += out.grad * e
+    out._backward = _bw
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -145,15 +179,16 @@ class WheelerDeWittProblem:
 
     p is the Hartle-Hawking factor-ordering parameter (the operator-ordering
     ambiguity of quantising a curved minisuperspace).  The classical turning
-    point sits at a_t = sqrt(3/Lambda): U < 0 (oscillatory, classically
-    allowed) for a > a_t, U > 0 (exponential, under the barrier) for a < a_t
-    -- the tunnelling-from-nothing configuration.
+    point sits at a_t = sqrt(3/Lambda): U > 0 (barrier, exponential) for
+    a < a_t, U < 0 (oscillatory, classically allowed) for a > a_t -- the
+    tunnelling-from-nothing configuration.
 
     Two independent ground truths:
-      * `exact` integrates the full ODE with scipy's adaptive Radau solver at
-        tight tolerance (rtol=1e-12);
+      * `exact` integrates the full ODE with SciPy's adaptive Radau solver at
+        rtol=1e-12;
       * `airy_asymptotic` gives the analytic Airy form valid near a_t, where
-        linearising U(a) ~ U'(a_t)(a - a_t) turns the equation into Psi_zz = z Psi.
+        linearising U(a) ~ U'(a_t)(a - a_t) turns the equation into
+        Psi_zz = z Psi.
     """
 
     name = "Wheeler-DeWitt (minisuperspace)"
@@ -163,13 +198,13 @@ class WheelerDeWittProblem:
         self.lam, self.p = lam, p
         self.a_lo, self.a_hi = a_lo, a_hi
         self.a_turn = float(np.sqrt(3.0 / lam))
-        self.a = torch.linspace(a_lo, a_hi, n_col).reshape(-1, 1).requires_grad_(True)
-        self.aic = torch.tensor([[a_lo]])
-        self._ref = None
-        # initial data at a_lo, shared by the PINN BC and the ODE reference
+        self.a_np = np.linspace(a_lo, a_hi, n_col)
+        self.a = _col(self.a_np)
+        self.aic = _col([a_lo])
         self.psi0, self.dpsi0 = 1.0, 0.0
 
-    def U(self, a):
+    def U(self, a: np.ndarray) -> np.ndarray:
+        a = np.asarray(a, dtype=float)
         return a ** 2 - (self.lam / 3.0) * a ** 4
 
     def exact(self, a_eval: np.ndarray) -> np.ndarray:
@@ -191,19 +226,17 @@ class WheelerDeWittProblem:
         z = -c * (a_eval - at)
         return airy(z)[0]                                    # Ai(z)
 
-    def residual(self, model, a):
-        psi = model(a)
-        dpsi = d(psi, a)
-        d2psi = d(dpsi, a)
-        return d2psi + (self.p / a) * dpsi - self.U(a) * psi
-
     def loss_fn(self, model):
+        Uvals = Tensor(self.U(self.a_np).reshape(-1, 1))
+        inv_a = Tensor((self.p / self.a_np).reshape(-1, 1))
+
         def closure():
-            r = self.residual(model, self.a)
-            phys = (r ** 2).mean()
-            aic = self.aic.clone().requires_grad_(True)
-            psi_ic = model(aic)
-            dpsi_ic = d(psi_ic, aic)
-            bc = ((psi_ic - self.psi0) ** 2).mean() + ((dpsi_ic - self.dpsi0) ** 2).mean()
-            return phys + 100.0 * bc
+            psi, dpsi, d2psi = model.forward_with_derivs(self.a, order=2)
+            r = d2psi + inv_a * dpsi - Uvals * psi
+            phys = (r * r).mean()
+            pic, dpic, _ = model.forward_with_derivs(self.aic, order=2)
+            e0 = pic - Tensor(self.psi0)
+            e1 = dpic - Tensor(self.dpsi0)
+            bc = (e0 * e0).mean() + (e1 * e1).mean()
+            return phys + Tensor(100.0) * bc
         return closure

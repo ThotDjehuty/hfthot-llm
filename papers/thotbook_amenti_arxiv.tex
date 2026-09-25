@@ -76,8 +76,14 @@ $\sim$500 documents ($\sim$5M words) can be used to fine-tune a Qwen3-8B model
 on consumer CPU hardware without any GPU, achieving
 inference speeds of 12--18 tokens/second. Our hybrid retrieval system combines
 HNSW approximate nearest neighbor search with BM25 sparse retrieval, achieving
-89\% Recall@5 on internal benchmarks. We release ThotBook-AmentI as open-source
-software, enabling fully private, local-first language model deployment.
+89\% Recall@5 on internal benchmarks. Beyond training and serving, the system provides a self-contained automatic
+differentiation engine and gradient-based optimisers (removing any
+deep-learning framework dependency), physics-informed neural solvers used to
+\emph{verify} the equations appearing in ingested documents, a
+membership-inference privacy audit producing calibrated probabilities, and a
+federated-training module implementing a published attack/defence taxonomy.
+We release ThotBook-AmentI as open-source software, enabling fully private,
+local-first language model deployment.
 \end{abstract}
 
 \textbf{Keywords:} Large Language Models, CPU Training, LoRA, Quantization,
@@ -442,6 +448,134 @@ Data flow through the lakehouse:
 \end{center}
 
 % ============================================================================
+\section{System Capabilities}
+\label{sec:capabilities}
+
+This section enumerates the functionality the system exposes, beyond the
+training pipeline of Section~\ref{sec:architecture}. Each capability is
+backed by an executed companion notebook or a crate test.
+
+\subsection{Self-Owned Automatic Differentiation}
+
+PINN residuals require derivatives of the trial solution with respect to its
+\emph{input}, up to second order, and then gradients of a loss containing
+those derivatives with respect to the network \emph{parameters} --- the
+``double backward'' that ordinarily motivates a deep-learning framework.
+
+We implement this in \texttt{thotgrad}, an array-level reverse-mode tape in
+roughly 250 lines of NumPy. Input derivatives are propagated analytically
+alongside the activations: for $h=\tanh(a)$,
+\begin{equation}
+h' = (1-h^{2})\,a', \qquad
+h'' = (1-h^{2})\bigl(a'' - 2h\,(a')^{2}\bigr).
+\label{eq:tanhderiv}
+\end{equation}
+Because both recursions are themselves expressed in taped operations, the
+value and its derivatives share one graph, and a single reverse sweep yields
+$\partial\mathcal{L}/\partial\theta$ for a loss involving $u$, $u_x$ and
+$u_{xx}$ --- without ever differentiating a derivative twice.
+
+Correctness is pinned against central finite differences: elementary
+operations agree to $\sim$$10^{-10}$, $u_x$ to $10^{-12}$, $u_{xx}$ to
+$10^{-6}$, and the full PINN parameter gradient to $1.8\times10^{-11}$ in
+max-norm with cosine similarity $1.000000$. The project therefore carries
+\emph{no} deep-learning framework dependency; NumPy, already required by
+\texttt{optimizr}, is the only third-party numerical package in the solver
+path.
+
+\subsection{Gradient-Based Optimisers}
+
+\texttt{optimiz-rs} provides gradient-\emph{free} global optimisers
+(differential evolution, grid search, MCMC), which suit non-differentiable
+objectives such as attack-threshold calibration. For differentiable
+objectives we add \texttt{thotopt}:
+
+\begin{itemize}
+    \item \textbf{AdamW} --- decoupled weight decay, mirroring
+          \texttt{llm\_train::optimizer::AdamWOptimizer} in the Rust crate.
+    \item \textbf{L-BFGS} --- the Nocedal two-loop recursion with
+          $H_0$ scaling, a curvature filter $s^\top y > 0$, and a
+          backtracking Armijo line search.
+\end{itemize}
+
+On a quadratic with a known optimum, L-BFGS converges in 7 iterations to
+machine precision. The operator choice is consequential: on an identical PINN,
+AdamW alone plateaus at loss $6.4\times10^{-2}$, AdamW followed by L-BFGS
+reaches $1.5\times10^{-4}$, and differential evolution --- given a comparable
+budget but no gradient --- stalls at $1.4$. Matching the optimiser to the
+objective's structure, rather than to habit, is worth three orders of
+magnitude.
+
+\subsection{Document Verification by Equation Solving}
+
+Retrieval answers \emph{``what does the paper say?''}; coupling retrieval to a
+solver answers \emph{``is what the paper says true?''}. The pipeline is:
+ingest $\rightarrow$ retrieve the governing equation $\rightarrow$ solve it
+numerically $\rightarrow$ compare against the document's stated solution.
+
+A corollary observed in practice is that the two halves fail independently and
+usefully. Searching the ingested corpus for the three benchmark equations
+returned 129 chunks across 16 documents for Dirac and 56 across 8 for
+Wheeler--DeWitt, but \emph{zero} for Brans--Dicke: the corpus does not cover
+scalar-tensor cosmology. Retrieval correctly reported the gap instead of
+returning loosely related material, while the PINN still solved Brans--Dicke
+to $4.3\times10^{-3}$ from the field equations alone. Solving from first
+principles is thus a usable fallback when ingestion is incomplete, and the
+gap itself becomes an ingestion signal.
+
+\subsection{Privacy Auditing as a Release Gate}
+
+The system ships a membership-inference audit intended to be run against
+one's \emph{own} adapter before weights or an endpoint are shared. It
+implements four scorers --- a random control, the loss threshold of Yeom et
+al., a single-model LiRA simplification after Carlini et al., and an
+agent-agnostic VAE over an embedding/loss/entropy feature vector --- and
+reports block-bootstrap confidence intervals throughout.
+
+Two design points matter for validity. Splits are constructed at
+\emph{document} level, since chunks of one paper share notation and style and
+a chunk-level split would let any attack separate the classes on style alone.
+And scores are converted to \emph{calibrated probabilities} by Platt scaling
+fitted on a held-out calibration split, with a reliability diagram and
+expected calibration error reported, so that the output is an actionable
+``probability this document was in the training set'' rather than a bare
+ranking.
+
+\subsection{Federated Training with Quantified Defences}
+
+The federated module implements FedAvg across clients partitioned by
+document, together with an honest-but-curious server that scores membership
+by the loss reduction a client's update induces,
+$s(x)=\ell(w^{t};x)-\ell(w^{t}+\Delta_k;x)$. All four defence families of
+Bai et al.'s taxonomy are provided: partial sharing (top-$K$ compression),
+secure aggregation, noise perturbation (clipping plus the Gaussian
+mechanism), and the anomaly-detection category, which the survey itself
+notes fails against passive attacks. Section~\ref{sec:verified} quantifies
+the resulting privacy/utility trade-off.
+
+\subsection{Reproducibility and Negative Results}
+
+Every notebook executes end to end and prints a summary cell recording cell
+count, kernel, and whether it ran on real or illustrative data. Where an
+experiment failed or contradicted expectation, the result is reported rather
+than removed:
+
+\begin{itemize}
+    \item Parallel multi-model ensembling was attempted and \textbf{failed}:
+          three local models totalling $\sim$38\,GB against 32\,GB of RAM
+          caused all fifteen requests to time out. Sequential execution
+          succeeds at $\sim$23\,s per query. Concurrency here is RAM-bound,
+          not compute-bound.
+    \item Error-driven active learning \textbf{underperformed} random
+          sampling at equal labelling budget ($-0.077$ for hard-example
+          mining, $-0.146$ for uncertainty sampling). On a convex model over
+          32-dimensional embeddings the highest-loss chunks are largely
+          boundary noise, and concentrating on them skews the fit.
+    \item Membership inference finds \textbf{no} detectable signal in the
+          realistic regime; see Section~\ref{sec:verified}.
+\end{itemize}
+
+% ============================================================================
 \section{Verified CPU Benchmarks: PINNs, Privacy and Federated Learning}
 \label{sec:verified}
 
@@ -455,8 +589,10 @@ notebook cell; none are projections.
 A retrieval system can quote a governing equation; a PINN can \emph{solve} it
 and check the quoted solution. We trained tanh MLPs
 ($\sim$$7$--$13\times10^{3}$ parameters, float64) with the standard two-stage
-Adam $\rightarrow$ L-BFGS recipe, grading each against an independent
-reference (Table~\ref{tab:pinn}).
+AdamW $\rightarrow$ L-BFGS recipe --- both optimisers, and the automatic
+differentiation underneath them, supplied by this project rather than by a
+deep-learning framework (Section~\ref{sec:capabilities}) --- grading each
+against an independent reference (Table~\ref{tab:pinn}).
 
 \begin{table}[h]
 \centering
@@ -465,9 +601,9 @@ reference (Table~\ref{tab:pinn}).
 \toprule
 \textbf{Equation} & \textbf{Rel. $L^2$} & \textbf{Final loss} & \textbf{Time (s)} & \textbf{Reference} \\
 \midrule
-Dirac (1+1 D)        & $3.9\times10^{-4}$ & $1.6\times10^{-6}$ & 37.6 & exact $\cos kx,\sin kx$ \\
-Brans--Dicke (FLRW)  & $4.3\times10^{-3}$ & $4.2\times10^{-6}$ & 58.1 & exact Nariai power law \\
-\textbf{Wheeler--DeWitt} & $\mathbf{1.8\times10^{-5}}$ & $2.4\times10^{-6}$ & 76.9 & Radau, \texttt{rtol}\,$10^{-12}$ \\
+Dirac (1+1 D)        & $1.7\times10^{-3}$ & $5.3\times10^{-5}$ & 62 & exact $\cos kx,\sin kx$ \\
+Brans--Dicke (FLRW)  & $4.3\times10^{-3}$ & $2.0\times10^{-8}$ & 70 & exact Nariai power law \\
+\textbf{Wheeler--DeWitt} & $\mathbf{8.3\times10^{-6}}$ & $1.9\times10^{-7}$ & 106 & Radau, \texttt{rtol}\,$10^{-12}$ \\
 \bottomrule
 \end{tabular}
 \label{tab:pinn}
