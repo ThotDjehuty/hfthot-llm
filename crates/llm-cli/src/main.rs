@@ -31,6 +31,15 @@ enum Commands {
         /// Output directory for chunks
         #[arg(long, default_value = "data/ingest")]
         output: PathBuf,
+        /// Max tokens per chunk (whitespace-token count). Keep this well
+        /// under the embedding model's real subword-token context: BERT-style
+        /// tokenizers produce more tokens per word than whitespace splitting,
+        /// especially on LaTeX and code.
+        #[arg(long, default_value = "150")]
+        max_tokens: usize,
+        /// Overlap between consecutive chunks, in whitespace tokens.
+        #[arg(long, default_value = "30")]
+        overlap_tokens: usize,
     },
 
     /// Start continuous training
@@ -159,12 +168,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             llm_serve::run_server(config)?;
         }
 
-        Commands::Ingest { sources, output } => {
-            tracing::info!(?sources, ?output, "starting ingestion");
+        Commands::Ingest { sources, output, max_tokens, overlap_tokens } => {
+            tracing::info!(?sources, ?output, max_tokens, overlap_tokens, "starting ingestion");
             let config = llm_ingest::IngestConfig {
                 sources,
                 output: Some(output),
-                ..Default::default()
+                chunk_config: llm_ingest::chunker::ChunkConfig { max_tokens, overlap_tokens },
             };
             let pipeline = llm_ingest::IngestPipeline::new(config);
             let report = pipeline.run()?;
@@ -205,14 +214,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Rag { action } => match action {
             RagAction::Build { input } => {
                 tracing::info!(?input, "building RAG index");
-                let store = llm_rag::RagStore::new(&input);
+                let chunks = input.join("chunks.jsonl");
+                if !chunks.exists() {
+                    return Err(format!(
+                        "no chunks.jsonl in {} — run: thotbook ingest <sources> --output {}",
+                        input.display(),
+                        input.display()
+                    )
+                    .into());
+                }
+                let mut embedder = llm_rag::OllamaEmbedder::from_env()?;
+                let mut store = llm_rag::RagStore::new(&input);
+                let n = store.build_from_chunks(&chunks, &mut embedder)?;
                 store.save()?;
-                println!("RAG index built");
+                println!(
+                    "RAG index built: {n} chunks embedded with {} (dim {})",
+                    store.embed_model, store.embed_dim
+                );
             }
             RagAction::Search { query, top_k } => {
                 tracing::info!(%query, top_k, "searching RAG index");
-                let engine = llm_rag::SearchEngine::new();
-                let results = engine.search(&vec![0.0; 384], &query, &llm_rag::SearchConfig {
+                let mut store = llm_rag::RagStore::new(&std::path::PathBuf::from("data/ingest"));
+                store.load()?;
+                let mut embedder = llm_rag::OllamaEmbedder::from_env()?;
+                let qv = embedder.embed(&query)?;
+                let engine = &store.engine;
+                let results = engine.search(&qv, &query, &llm_rag::SearchConfig {
                     top_k,
                     ..Default::default()
                 });

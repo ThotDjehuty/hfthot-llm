@@ -73,11 +73,13 @@ impl OllamaEmbedder {
     /// models served by Ollama answer the embed endpoint with an empty array,
     /// so this is the check that catches a mis-set model name.
     pub fn embed(&mut self, text: &str) -> Result<Vec<f32>, RagError> {
-        // Embedding models have a fixed context (512 tokens for all-minilm).
-        // Oversized input makes the server drop the connection rather than
-        // return an error, so clamp before sending. ~4 chars/token is the usual
-        // rule of thumb; 1600 chars leaves headroom.
-        const MAX_CHARS: usize = 1600;
+        // Safety backstop only: chunks should already fit the embedding
+        // model's context (all-minilm = 256 subword tokens). BERT-style
+        // tokenizers produce more tokens per word than whitespace splitting,
+        // so this clamp is deliberately tight relative to the chunker's
+        // whitespace-token count. Oversized input makes the server drop the
+        // connection rather than return a clean error.
+        const MAX_CHARS: usize = 800;
         let clamped: String = if text.chars().count() > MAX_CHARS {
             text.chars().take(MAX_CHARS).collect()
         } else {
@@ -90,7 +92,7 @@ impl OllamaEmbedder {
         // an entire indexing run to it is not worth the simplicity.
         let mut last_err = String::new();
         let mut resp = None;
-        for attempt in 0..2 {
+        for attempt in 0..5 {
             match self
                 .client
                 .post(format!("{}/api/embed", self.url))
@@ -103,14 +105,12 @@ impl OllamaEmbedder {
                 }
                 Err(e) => {
                     last_err = e.to_string();
-                    if attempt == 0 {
-                        std::thread::sleep(std::time::Duration::from_millis(500));
-                    }
+                    std::thread::sleep(std::time::Duration::from_millis(500 * (attempt + 1)));
                 }
             }
         }
         let resp = resp.ok_or_else(|| {
-            RagError::Embedding(format!("POST /api/embed failed twice: {last_err}"))
+            RagError::Embedding(format!("POST /api/embed failed after 5 attempts: {last_err}"))
         })?;
 
         let status = resp.status();
