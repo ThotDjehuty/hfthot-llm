@@ -19,6 +19,13 @@ pub struct HnswIndex {
     pub ml: f64,
     /// Hierarchical layers: levels[0] = layer 0 (most dense).
     levels: Vec<Vec<Node>>,
+    /// node id -> position within `levels[l]`.
+    ///
+    /// Without this, locating a node meant a linear scan of the level on every
+    /// insert. Level 0 holds every node, so building an N-node index was
+    /// O(N^2): indexing 4686 chunks made no measurable progress in minutes.
+    #[serde(default)]
+    level_pos: Vec<ahash::AHashMap<usize, usize>>,
     /// The entry point node index (at the highest level).
     entry_point: usize,
     /// All vectors stored in insertion order.
@@ -67,11 +74,13 @@ impl HnswIndex {
         let m_max = if m > 0 { 2 * m } else { 16 };
         let ml = 1.0 / (m as f64).ln();
         let levels = vec![Vec::new(); max_level + 1];
+        let level_pos = vec![ahash::AHashMap::new(); max_level + 1];
         Self {
             m,
             m_max,
             ml,
             levels,
+            level_pos,
             entry_point: 0,
             vectors: Vec::new(),
             max_level: 0,
@@ -85,6 +94,37 @@ impl HnswIndex {
 
     pub fn is_empty(&self) -> bool {
         self.vectors.is_empty()
+    }
+
+    /// The stored vector for a node, if present. Needed to rebuild the search
+    /// engine on load without re-embedding the whole corpus.
+    pub fn vector(&self, id: usize) -> Option<Vec<f32>> {
+        self.vectors.get(id).cloned()
+    }
+
+    /// Record the position a node will occupy in `levels[l]`.
+    fn level_pos_insert(&mut self, l: usize, node_id: usize) {
+        while self.level_pos.len() <= l {
+            self.level_pos.push(ahash::AHashMap::new());
+        }
+        let pos = self.levels[l].len();
+        self.level_pos[l].insert(node_id, pos);
+    }
+
+    /// O(1) lookup of a node within a level.
+    ///
+    /// Falls back to a scan when the map is absent, so indexes serialised
+    /// before this field existed still load.
+    fn node_at(&self, level: usize, id: usize) -> Option<&Node> {
+        if let Some(map) = self.level_pos.get(level) {
+            if let Some(&pos) = map.get(&id) {
+                return self.levels[level].get(pos);
+            }
+            if !map.is_empty() {
+                return None;
+            }
+        }
+        self.levels.get(level)?.iter().find(|n| n.id == id)
     }
 
     /// Randomly assign a level for a new node.
@@ -117,6 +157,7 @@ impl HnswIndex {
             self.entry_point = 0;
             self.max_level = level;
             for l in 0..=level {
+                self.level_pos_insert(l, node_id);
                 self.levels[l].push(Node {
                     id: node_id,
                     neighbors: Vec::new(),
@@ -145,6 +186,7 @@ impl HnswIndex {
                 id: node_id,
                 neighbors: neighbors.clone(),
             };
+            self.level_pos_insert(l, node.id);
             self.levels[l].push(node);
 
             // Add reverse connections
@@ -175,7 +217,7 @@ impl HnswIndex {
             return vec![];
         }
 
-        let start_node = self.levels[level].iter().find(|n| n.id == start);
+        let start_node = self.node_at(level, start);
         let start_dist = match start_node {
             Some(n) => {
                 let v = &self.vectors[n.id];
@@ -204,7 +246,7 @@ impl HnswIndex {
             }
 
             // Visit neighbors
-            if let Some(node) = self.levels[level].iter().find(|n| n.id == current.id) {
+            if let Some(node) = self.node_at(level, current.id) {
                 for &neighbor_id in &node.neighbors {
                     if visited.insert(neighbor_id) {
                         let dist = self.distance(
