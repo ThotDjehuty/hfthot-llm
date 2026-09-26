@@ -18,7 +18,7 @@ impl Default for ChunkConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Chunk {
     pub text: String,
     pub start_offset: usize,

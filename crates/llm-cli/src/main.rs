@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "thotbook", about = "thotbook-AmentI — private LLM training & serving")]
+#[command(name = "thotbook", about = "thotbook-ai — private LLM training & serving")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -163,6 +163,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!(?sources, ?output, "starting ingestion");
             let config = llm_ingest::IngestConfig {
                 sources,
+                output: Some(output),
                 ..Default::default()
             };
             let pipeline = llm_ingest::IngestPipeline::new(config);
@@ -171,6 +172,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "Ingestion complete: {} files, {} chunks, {} errors",
                 report.files_processed, report.chunks_created, report.errors.len()
             );
+            match &report.output_path {
+                Some(p) => println!("Chunks written to {}", p.display()),
+                None => println!("No output directory configured; nothing persisted."),
+            }
         }
 
         Commands::Train {
@@ -230,7 +235,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Status => {
-            println!("thotbook-AmentI v0.3.0");
+            println!("thotbook-ai v0.3.0");
             println!("Crates: llm-corpus, llm-tokenize, llm-train, llm-rag, llm-serve, llm-cli, llm-ingest, llm-salviers, llm-auto");
             println!("Model: Qwen3-8B (candle, CPU)");
             println!("sAlvIers agents: sAlvIers/");

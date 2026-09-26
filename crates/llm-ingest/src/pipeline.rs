@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
@@ -17,11 +18,14 @@ use crate::pdf;
 pub struct IngestConfig {
     pub chunk_config: ChunkConfig,
     pub sources: Vec<PathBuf>,
+    /// Where to write `chunks.jsonl`. `None` runs the pipeline without
+    /// persisting, which is only useful for counting.
+    pub output: Option<PathBuf>,
 }
 
 
 /// A single ingested document chunk.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IngestedChunk {
     pub doc_id: String,
     pub source: String,
@@ -30,7 +34,8 @@ pub struct IngestedChunk {
     pub metadata: serde_json::Value,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SourceType {
     Pdf,
     Markdown,
@@ -42,6 +47,8 @@ pub enum SourceType {
 /// Result of an ingestion run.
 #[derive(Debug, Default)]
 pub struct IngestReport {
+    /// Path written, when an output directory was configured.
+    pub output_path: Option<PathBuf>,
     pub files_processed: usize,
     pub files_skipped: usize,
     pub chunks_created: usize,
@@ -185,10 +192,39 @@ impl IngestPipeline {
             }
         }
 
+        // Persist. Without this the pipeline reports a chunk count and then
+        // drops every chunk on the floor, leaving `rag build` with no input.
+        if let Some(dir) = &self.config.output {
+            std::fs::create_dir_all(dir).map_err(|e| IngestError::Io {
+                path: dir.clone(),
+                source: e,
+            })?;
+            let path = dir.join("chunks.jsonl");
+            let file = std::fs::File::create(&path).map_err(|e| IngestError::Io {
+                path: path.clone(),
+                source: e,
+            })?;
+            let mut writer = std::io::BufWriter::new(file);
+            for chunk in &all_chunks {
+                let line = serde_json::to_string(chunk).map_err(|e| IngestError::Markdown {
+                    path: path.clone(),
+                    reason: format!("serialising chunk: {e}"),
+                })?;
+                writer.write_all(line.as_bytes()).and_then(|_| writer.write_all(b"\n"))
+                    .map_err(|e| IngestError::Io { path: path.clone(), source: e })?;
+            }
+            writer.flush().map_err(|e| IngestError::Io {
+                path: path.clone(),
+                source: e,
+            })?;
+            report.output_path = Some(path);
+        }
+
         info!(
             files = report.files_processed,
             chunks = report.chunks_created,
             errors = report.errors.len(),
+            output = ?report.output_path,
             "ingestion complete"
         );
 
@@ -236,5 +272,83 @@ mod tests {
             Some(SourceType::Notebook)
         );
         assert_eq!(classify_file(Path::new("test.rs")), None);
+    }
+}
+
+#[cfg(test)]
+mod persistence_tests {
+    use super::*;
+
+    /// The pipeline used to count chunks and drop them, so `--output` was
+    /// accepted and silently ignored and `rag build` had nothing to read.
+    #[test]
+    fn run_writes_chunks_jsonl() {
+        let dir = std::env::temp_dir().join(format!("ingest-test-{}", uuid::Uuid::new_v4()));
+        let src = dir.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("a.md"), "# Titre\n\nUn paragraphe de test.\n").unwrap();
+        std::fs::write(
+            src.join("b.tex"),
+            "\\section{Analyse}\nLe theoreme de Stokes.\n",
+        )
+        .unwrap();
+
+        let out = dir.join("out");
+        let report = IngestPipeline::new(IngestConfig {
+            sources: vec![src.clone()],
+            output: Some(out.clone()),
+            ..Default::default()
+        })
+        .run()
+        .unwrap();
+
+        assert_eq!(report.files_processed, 2, "both files should be processed");
+        assert!(report.chunks_created > 0);
+
+        let path = out.join("chunks.jsonl");
+        assert_eq!(report.output_path.as_deref(), Some(path.as_path()));
+        assert!(path.exists(), "chunks.jsonl was not written");
+
+        let body = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = body.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(
+            lines.len(),
+            report.chunks_created,
+            "line count must match the reported chunk count"
+        );
+
+        // Every line must round-trip, and the LaTeX source must be present.
+        let mut saw_latex = false;
+        for line in &lines {
+            let c: IngestedChunk = serde_json::from_str(line).expect("chunk round-trip");
+            assert!(!c.chunk.text.is_empty());
+            if c.source_type == SourceType::Latex {
+                saw_latex = true;
+                assert!(c.chunk.text.contains("Stokes"), "latex text lost: {}", c.chunk.text);
+            }
+        }
+        assert!(saw_latex, "no latex chunk was persisted");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Without an output directory the pipeline still runs, but says so.
+    #[test]
+    fn run_without_output_persists_nothing() {
+        let dir = std::env::temp_dir().join(format!("ingest-noout-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.md"), "# T\n\nTexte.\n").unwrap();
+
+        let report = IngestPipeline::new(IngestConfig {
+            sources: vec![dir.clone()],
+            output: None,
+            ..Default::default()
+        })
+        .run()
+        .unwrap();
+
+        assert!(report.chunks_created > 0);
+        assert!(report.output_path.is_none());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
