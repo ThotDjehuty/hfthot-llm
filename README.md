@@ -32,16 +32,18 @@ and paper indexes into a *personal language model* — fully on your own
 hardware. It is built as six focused Rust crates wired together by a Polarway
 Delta lakehouse:
 
-```text
- M1            M2              M3              M4              M5
-┌────────┐   ┌────────┐    ┌────────┐    ┌────────┐    ┌──────────────┐
-│ corpus │──▶│tokenize│───▶│ train  │───▶│  rag   │───▶│ serve        │
-│ ingest │   │sharded │    │ (LoRA) │    │(HNSW)  │    │ OpenAI API    │
-└────────┘   └────────┘    └────────┘    └────────┘    └──────────────┘
-     ▲                           │              ▲              │
-     │                     M6 citation crawler ──┘              │
-     └─────────────────────── SQLite → Arrow → Delta ──────────┘
-```
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)"
+          srcset="docs/diagrams/thotbook_pipeline_dark.svg">
+  <source media="(prefers-color-scheme: light)"
+          srcset="docs/diagrams/thotbook_pipeline.svg">
+  <img alt="thotbook-AmentI pipeline: ingestion (M1 corpus ingest, M2 tokenize) feeds training (M3 LoRA, M4 RAG/HNSW) feeds serving (M5 OpenAI-compatible API, M7 llm-auto orchestration). The M6 citation crawler returns references to the corpus, and every stage reads and writes a versioned SQLite / Apache Arrow / Delta Lake substrate."
+       src="docs/diagrams/thotbook_pipeline.svg" width="100%">
+</picture>
+
+</div>
 
 Every stage reads from / writes to an **Apache Arrow → Delta Lake** lakehouse
 (`data/lakehouse`), so any step can be re-run idempotently without losing data.
