@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 use crate::agent;
 use crate::chunker::{self, Chunk, ChunkConfig};
 use crate::error::IngestError;
+use crate::latex;
 use crate::markdown;
 use crate::pdf;
 
@@ -35,6 +36,7 @@ pub enum SourceType {
     Markdown,
     Agent,
     Notebook,
+    Latex,
 }
 
 /// Result of an ingestion run.
@@ -84,6 +86,7 @@ impl IngestPipeline {
     pub fn extract(&self, path: &Path, source_type: &SourceType) -> Result<String, IngestError> {
         match source_type {
             SourceType::Pdf => pdf::extract_pdf(path),
+            SourceType::Latex => latex::extract_latex(path),
             SourceType::Markdown | SourceType::Agent => markdown::extract_markdown(path),
             SourceType::Notebook => {
                 // Extract text from .ipynb JSON cells
@@ -205,6 +208,7 @@ fn classify_file(path: &Path) -> Option<SourceType> {
             }
         }
         Some("ipynb") => Some(SourceType::Notebook),
+        Some("tex") => Some(SourceType::Latex),
         _ => None,
     }
 }
