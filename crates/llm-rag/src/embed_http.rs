@@ -6,9 +6,18 @@
 //! engine **model-agnostic**: any embedding model Ollama can serve works, and
 //! swapping it is an environment variable rather than a rebuild.
 //!
+//! Uses `ureq` rather than `reqwest`'s blocking client deliberately: reqwest's
+//! blocking mode wraps a background Tokio runtime, and driving thousands of
+//! small sequential loopback requests through it (one per chunk, over a
+//! 14,000-chunk corpus) showed sustained ~100% CPU with multi-second gaps
+//! between completions, while Ollama's own server log showed every request
+//! being served in under 100ms throughout. `ureq` is a genuinely synchronous
+//! client with no internal runtime, and the same workload runs at the
+//! server's actual speed.
+//!
 //! ```text
 //! THOTBOOK_EMBED_MODEL=nomic-embed-text   # default
-//! THOTBOOK_EMBED_URL=http://localhost:11434
+//! THOTBOOK_EMBED_URL=http://127.0.0.1:11434
 //! ```
 
 use serde::Deserialize;
@@ -16,11 +25,15 @@ use serde::Deserialize;
 use crate::error::RagError;
 
 pub const DEFAULT_MODEL: &str = "nomic-embed-text";
-pub const DEFAULT_URL: &str = "http://localhost:11434";
+// 127.0.0.1, not "localhost": Rust HTTP clients on macOS can race the AAAA
+// (::1) and A (127.0.0.1) records for "localhost" per RFC 8305, and if
+// nothing is listening on ::1 that race costs real time on every connection.
+// Ollama binds IPv4 only, so skip the race entirely.
+pub const DEFAULT_URL: &str = "http://127.0.0.1:11434";
 
 /// A local embedding backend.
 pub struct OllamaEmbedder {
-    client: reqwest::blocking::Client,
+    agent: ureq::Agent,
     url: String,
     model: String,
     dim: Option<usize>,
@@ -44,12 +57,12 @@ impl OllamaEmbedder {
     }
 
     pub fn new(url: &str, model: &str) -> Result<Self, RagError> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
-            .build()
-            .map_err(|e| RagError::Embedding(format!("building HTTP client: {e}")))?;
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(15))
+            .build();
         Ok(Self {
-            client,
+            agent,
             url: url.trim_end_matches('/').to_string(),
             model: model.to_string(),
             dim: None,
@@ -77,13 +90,13 @@ impl OllamaEmbedder {
         // model's context (all-minilm = 256 subword tokens). BERT-style
         // tokenizers produce more tokens per word than whitespace splitting,
         // so this clamp is deliberately tight relative to the chunker's
-        // whitespace-token count. Oversized input makes the server drop the
-        // connection rather than return a clean error.
+        // whitespace-token count.
         const MAX_CHARS: usize = 800;
-        let clamped: String = if text.chars().count() > MAX_CHARS {
-            text.chars().take(MAX_CHARS).collect()
+        let clamped: &str = if text.chars().count() > MAX_CHARS {
+            let end = text.char_indices().nth(MAX_CHARS).map(|(i, _)| i).unwrap_or(text.len());
+            &text[..end]
         } else {
-            text.to_string()
+            text
         };
 
         let body = serde_json::json!({ "model": self.model, "input": clamped });
@@ -91,38 +104,31 @@ impl OllamaEmbedder {
         // One retry: a dropped connection under load is transient, and losing
         // an entire indexing run to it is not worth the simplicity.
         let mut last_err = String::new();
-        let mut resp = None;
-        for attempt in 0..5 {
+        let mut parsed: Option<EmbedResponse> = None;
+        for attempt in 0..3 {
             match self
-                .client
-                .post(format!("{}/api/embed", self.url))
-                .json(&body)
-                .send()
+                .agent
+                .post(&format!("{}/api/embed", self.url))
+                .send_json(&body)
             {
-                Ok(r) => {
-                    resp = Some(r);
-                    break;
-                }
+                Ok(resp) => match resp.into_json::<EmbedResponse>() {
+                    Ok(r) => {
+                        parsed = Some(r);
+                        break;
+                    }
+                    Err(e) => last_err = format!("decoding response: {e}"),
+                },
                 Err(e) => {
                     last_err = e.to_string();
-                    std::thread::sleep(std::time::Duration::from_millis(500 * (attempt + 1)));
+                    std::thread::sleep(std::time::Duration::from_millis(300 * (attempt + 1)));
                 }
             }
         }
-        let resp = resp.ok_or_else(|| {
-            RagError::Embedding(format!("POST /api/embed failed after 5 attempts: {last_err}"))
+        let parsed = parsed.ok_or_else(|| {
+            RagError::Embedding(format!("POST /api/embed failed after 3 attempts: {last_err}"))
         })?;
 
-        let status = resp.status();
-        let parsed: EmbedResponse = resp
-            .json()
-            .map_err(|e| RagError::Embedding(format!("decoding response ({status}): {e}")))?;
-
-        let mut v = parsed
-            .embeddings
-            .into_iter()
-            .next()
-            .unwrap_or(parsed.embedding);
+        let mut v = parsed.embeddings.into_iter().next().unwrap_or(parsed.embedding);
 
         if v.is_empty() {
             return Err(RagError::Embedding(format!(
@@ -175,7 +181,15 @@ mod tests {
 
     #[test]
     fn trailing_slash_is_trimmed() {
-        let e = OllamaEmbedder::new("http://localhost:11434/", "m").unwrap();
-        assert_eq!(e.url, "http://localhost:11434");
+        let e = OllamaEmbedder::new("http://127.0.0.1:11434/", "m").unwrap();
+        assert_eq!(e.url, "http://127.0.0.1:11434");
+    }
+
+    #[test]
+    fn default_url_is_ip_not_hostname() {
+        // Regression guard: "localhost" resolution races IPv6/IPv4 in Rust
+        // HTTP clients and cost real time in production runs.
+        assert!(!DEFAULT_URL.contains("localhost"));
+        assert!(DEFAULT_URL.contains("127.0.0.1"));
     }
 }
